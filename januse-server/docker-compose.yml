@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  janus:
+    image: canyan/janus-gateway:latest
+    container_name: janus-sfu
+    restart: always
+
+    ports:
+      - "8088:8088"     # HTTP API
+      - "8188:8188"     # WebSocket API
+      - "8089:8089"     # Admin/Monitor
+      - "10000-10200:10000-10200/udp"  # RTP Media
+
+    environment:
+      - JANUS_DEBUG_LEVEL=4
+
+    volumes:
+      - ./config:/usr/local/etc/janus
