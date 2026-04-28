@@ -7,13 +7,17 @@ services:
     restart: always
 
     ports:
-      - "8088:8088"     # HTTP API
-      - "8188:8188"     # WebSocket API
-      - "8089:8089"     # Admin/Monitor
-      - "10000-10200:10000-10200/udp"  # RTP Media
+      - "8088:8088"   # HTTP API
+      - "8188:8188"   # WebSocket API
+      - "8089:8089"   # Admin/Monitor
+      - "10000-10200:10000-10200/udp" # RTP Media
 
     environment:
       - JANUS_DEBUG_LEVEL=4
 
     volumes:
       - ./config:/usr/local/etc/janus
+
+    command: >
+      janus
+      --configs-folder=/usr/local/etc/janus

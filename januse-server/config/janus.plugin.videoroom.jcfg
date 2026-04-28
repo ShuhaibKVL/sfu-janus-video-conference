@@ -1,0 +1,14 @@
+general: {
+}
+
+room-1234: {
+    description = "Study Room"
+    is_private = false
+    secret = "admin123"
+    publishers = 20
+    bitrate = 128000
+    fir_freq = 10
+    audiocodec = "opus"
+    videocodec = "vp8"
+    record = false
+}

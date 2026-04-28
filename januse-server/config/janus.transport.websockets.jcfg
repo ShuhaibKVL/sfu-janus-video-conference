@@ -1,0 +1,4 @@
+general: {
+    ws = true
+    ws_port = 8188
+}
