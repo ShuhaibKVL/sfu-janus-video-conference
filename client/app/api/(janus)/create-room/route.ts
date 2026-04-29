@@ -1,14 +1,9 @@
+import { JANUS_HTTP_URL } from "@/lib/constants";
+import { generateTransaction } from "@/lib/utils";
 import { NextResponse } from "next/server";
-
-function generateTransaction() {
-    return Math.random().toString(36).substring(2, 15);
-}
 
 export async function POST() {
     try {
-        const JANUS_HTTP_URL =
-            "http://localhost:8088/janus";
-
         /*
           STEP 1
           Create Janus Session
@@ -74,15 +69,6 @@ export async function POST() {
 
         /*
           STEP 3
-          Generate Dynamic Room ID
-        */
-
-        const roomId = Math.floor(
-            1000 + Math.random() * 9000
-        );
-
-        /*
-          STEP 4
           Create Room inside Janus
         */
 
@@ -98,10 +84,9 @@ export async function POST() {
                     transaction: generateTransaction(),
                     body: {
                         request: "create",
-                        room: roomId,
                         permanent: false,
                         publishers: 20,
-                        description: `Room ${roomId}`,
+                        description: `Dynamic Room`,
                     },
                 }),
             }
@@ -114,6 +99,28 @@ export async function POST() {
             "Create Room Response:",
             roomData
         );
+
+        const roomId =
+            roomData?.plugindata?.data?.room;
+
+        if (!roomId) {
+            throw new Error(
+                "Failed to get created room ID"
+            );
+        }
+
+        // STEP 4 - Destroy session (IMPORTANT)
+
+        await fetch(`${JANUS_HTTP_URL}/${sessionId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                janus: "destroy",
+                transaction: generateTransaction(),
+            }),
+        });
 
         /*
           STEP 5
@@ -133,7 +140,7 @@ export async function POST() {
         return NextResponse.json(
             {
                 success: false,
-                error: error.message,
+                error: error?.message,
             },
             {
                 status: 500,
