@@ -18,6 +18,8 @@ interface VideoLayoutProps {
     leaveMeeting: () => void;
     startScreenShare: () => void;
     stopScreenShare: () => void;
+    raiseHand: () => void;
+    raisedHands: { user: string; id: string }[]
     sharedScreen: {
         id: string;
         stream: MediaStream;
@@ -35,6 +37,8 @@ export default function VideoLayout({
     startScreenShare,
     stopScreenShare,
     isScreenSharing,
+    raiseHand,
+    raisedHands
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -115,6 +119,14 @@ export default function VideoLayout({
 
     return (
         <>
+            {raisedHands.map(item => (
+                <div
+                    key={item.id}
+                    className="bg-black/80 text-white px-4 py-2 rounded-xl shadow-lg animate-fade-in-out"
+                >
+                    {item.user} ✋
+                </div>
+            ))}
             {sharedScreen ? (
                 <main className="h-screen bg-black text-white p-4 md:p-6 overflow-hidden">
                     <div className="max-w-7xl mx-auto h-full flex flex-col">
@@ -270,7 +282,7 @@ export default function VideoLayout({
                 toggleCamera={() => { }}
                 toggleScreenShare={startScreenShare}
                 stopScreenShare={stopScreenShare}
-                raiseHand={() => { }}
+                raiseHand={raiseHand}
                 toggleChat={() => { }}
                 sendReaction={() => { }}
                 toggleNoiseCancellation={() => { }}

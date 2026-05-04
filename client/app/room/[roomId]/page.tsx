@@ -47,6 +47,12 @@ export default function RoomPage() {
             name: string;
         } | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [raisedHands, setRaisedHands] = useState<
+        { user: string; id: string }[]
+    >([]);
+    const textRoomRef = useRef<any>(null);
+
+    // ------------------           --------------------
 
     const subscribeToPublisher = (
         publisherId: number,
@@ -478,8 +484,31 @@ export default function RoomPage() {
         setIsScreenSharing(false);
     };
 
+    const raiseHand = () => {
+        if (!textRoomRef.current) return;
+
+        const message = {
+            textroom: "message",
+            room: 1234,
+            text: JSON.stringify({
+                type: "RAISE_HAND",
+                user: username,
+            }),
+        };
+
+        textRoomRef.current.data({
+            text: JSON.stringify(message),
+        });
+    };
+
     const startScreenShare = async () => {
         try {
+            // 🚨 BLOCK if someone else is sharing
+            if (sharedScreen && !isScreenSharing) {
+                alert("Someone is already presenting");
+                return;
+            }
+
             if (screenPublisherRef.current) {
                 alert("You are already sharing your screen");
                 return;
@@ -570,6 +599,8 @@ export default function RoomPage() {
             startScreenShare={startScreenShare}
             stopScreenShare={stopScreenShare}
             isScreenSharing={isScreenSharing}
+            raiseHand={raiseHand}
+            raisedHands={raisedHands}
         />
     );
 }

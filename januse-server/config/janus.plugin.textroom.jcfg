@@ -1,0 +1,12 @@
+general: {
+    admin_key = "admin"
+}
+
+rooms: [
+    {
+        room = 1234
+        description = "Main Text Room"
+        is_private = false
+        history = 100
+    }
+]

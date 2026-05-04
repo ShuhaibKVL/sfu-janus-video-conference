@@ -37,7 +37,7 @@ const MeetingControls = ({
     isCameraOff,
     isScreenSharing,
     isChatOpened,
-    isNoiseCancellationOn,
+    // isNoiseCancellationOn,
     toggleMic,
     toggleCamera,
     toggleScreenShare,
@@ -46,7 +46,7 @@ const MeetingControls = ({
     raiseHand,
     toggleChat,
     sendReaction,
-    toggleNoiseCancellation,
+    // toggleNoiseCancellation,
 
     unreadCount = 0,
 }: Props) => {
@@ -109,7 +109,7 @@ const MeetingControls = ({
                     )}
                 </button>
 
-                <button
+                {/* <button
                     onClick={toggleNoiseCancellation}
                     className={`px-5 py-3 rounded-2xl transition ${isNoiseCancellationOn
                         ? "bg-green-600 hover:bg-green-500"
@@ -131,7 +131,7 @@ const MeetingControls = ({
                             />
                         )}
                     </div>
-                </button>
+                </button> */}
 
                 <button
                     onClick={toggleCamera}
