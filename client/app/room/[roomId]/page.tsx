@@ -5,6 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
 import VideoLayout from "@/components/VideoLayout";
+import { useSocket } from "@/hooks/useSocket";
+import { SOCKET_EVENTS } from "@/lib/constants";
+
 
 declare global {
     interface Window {
@@ -32,6 +35,7 @@ export default function RoomPage() {
     const janusRef = useRef<any>(null);
     const publisherRef = useRef<any>(null);
     const subscriberRefs = useRef<any[]>([]);
+    const publisherIdRef = useRef<number | null>(null);
     const subscribedFeeds =
         useRef<Set<number>>(new Set());
 
@@ -47,12 +51,10 @@ export default function RoomPage() {
             name: string;
         } | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [raisedHands, setRaisedHands] = useState<
-        { user: string; id: string }[]
-    >([]);
-    const textRoomRef = useRef<any>(null);
+    const [raisedHandsSet, setRaisedHandsSet] = useState<Set<string>>(new Set());
+    const { emitRaiseHand, socketRef } = useSocket(roomId, username);
 
-    // ------------------           --------------------
+    // ------------------  ---  --------------------
 
     const subscribeToPublisher = (
         publisherId: number,
@@ -219,6 +221,18 @@ export default function RoomPage() {
                                 msg.publishers.length > 0
                             ) {
                                 console.log("Existing publishers in the room:", msg.publishers);
+                                const publisherId = msg.id; // Janus ID
+
+                                publisherIdRef.current = msg.id;
+
+                                // send to socket server
+                                socketRef.current?.emit(SOCKET_EVENTS.REGISTER_USER, {
+                                    roomId,
+                                    socketId: socketRef.current.id,
+                                    publisherId,
+                                    username,
+                                });
+
                                 msg.publishers.forEach(
                                     (publisher: any) => {
                                         if (!subscribedFeeds.current.has(publisher.id)) {
@@ -462,6 +476,34 @@ export default function RoomPage() {
         }
     }, [localStream, sharedScreen]);
 
+    useEffect(() => {
+        const socket = socketRef.current;
+        console.log("Setting up socket listeners... :", socket);
+        if (!socket) return;
+        console.log("Socket is available, setting up raise hand listener...");
+        socket.on(SOCKET_EVENTS.RAISE_HAND, (data) => {
+            console.log("Received raise hand event:", data);
+
+            const id = String(data.publisherId)
+
+            setRaisedHandsSet(prev => {
+                const newSet = new Set(prev);
+
+                if (data.raised) {
+                    newSet.add(id);
+                } else {
+                    newSet.delete(id);
+                }
+
+                return newSet;
+            });
+        });
+
+        return () => {
+            socket.off(SOCKET_EVENTS.RAISE_HAND);
+        };
+    }, []);
+
     const stopScreenShare = () => {
         if (screenShareStream) {
             screenShareStream
@@ -484,20 +526,32 @@ export default function RoomPage() {
         setIsScreenSharing(false);
     };
 
-    const raiseHand = () => {
-        if (!textRoomRef.current) return;
+    const toggleRaiseHand = () => {
+        console.log("Toggling raise hand... :", socketRef.current);
+        const socket = socketRef.current;
+        const myPublisherId = publisherIdRef.current;
 
-        const message = {
-            textroom: "message",
-            room: 1234,
-            text: JSON.stringify({
-                type: "RAISE_HAND",
-                user: username,
-            }),
-        };
+        if (!myPublisherId) {
+            console.warn("Publisher ID not ready yet");
+            return;
+        }
 
-        textRoomRef.current.data({
-            text: JSON.stringify(message),
+        if (!socket || !socket?.id) return;
+
+        const idStr = myPublisherId.toString();
+        const isRaised = raisedHandsSet.has(idStr);
+
+        emitRaiseHand({
+            roomId,
+            userId: socket.id,
+            username,
+            raised: !isRaised,
+        });
+        console.log("Emitted raise hand event with data:", {
+            roomId,
+            userId: myPublisherId,
+            username,
+            raised: !isRaised,
         });
     };
 
@@ -599,8 +653,9 @@ export default function RoomPage() {
             startScreenShare={startScreenShare}
             stopScreenShare={stopScreenShare}
             isScreenSharing={isScreenSharing}
-            raiseHand={raiseHand}
-            raisedHands={raisedHands}
+            raiseHand={toggleRaiseHand}
+            raisedHandsSet={raisedHandsSet}
+            myPublisherId={publisherIdRef.current?.toString() || null}
         />
     );
 }

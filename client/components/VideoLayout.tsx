@@ -19,13 +19,14 @@ interface VideoLayoutProps {
     startScreenShare: () => void;
     stopScreenShare: () => void;
     raiseHand: () => void;
-    raisedHands: { user: string; id: string }[]
+    raisedHandsSet: Set<string>;
     sharedScreen: {
         id: string;
         stream: MediaStream;
         name: string;
     } | null;
     isScreenSharing: boolean;
+    myPublisherId: number | null;
 }
 
 export default function VideoLayout({
@@ -38,7 +39,8 @@ export default function VideoLayout({
     stopScreenShare,
     isScreenSharing,
     raiseHand,
-    raisedHands
+    raisedHandsSet,
+    myPublisherId,
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -116,17 +118,11 @@ export default function VideoLayout({
             </main>
         );
     }
+    console.log('Raised Hands Set:', raisedHandsSet);
+    console.log('Visible Remotes:', visibleRemotes);
 
     return (
         <>
-            {raisedHands.map(item => (
-                <div
-                    key={item.id}
-                    className="bg-black/80 text-white px-4 py-2 rounded-xl shadow-lg animate-fade-in-out"
-                >
-                    {item.user} ✋
-                </div>
-            ))}
             {sharedScreen ? (
                 <main className="h-screen bg-black text-white p-4 md:p-6 overflow-hidden">
                     <div className="max-w-7xl mx-auto h-full flex flex-col">
@@ -152,20 +148,29 @@ export default function VideoLayout({
                                             remote.id !== sharedScreen.id
                                     )
                                     .slice(0, 2)
-                                    .map((remote) => (
-                                        <div
-                                            key={remote.id}
-                                            className="relative flex-1 rounded-2xl overflow-hidden border border-white/10 bg-black"
-                                        >
-                                            <RemoteVideo
-                                                stream={remote.stream}
-                                            />
+                                    .map((remote) => {
+                                        return (
+                                            <div
+                                                key={remote.id}
+                                                className="relative flex-1 rounded-2xl overflow-hidden border border-white/10 bg-black"
+                                            >
 
-                                            <div className="absolute top-2 left-2 bg-black/60 px-3 py-1 rounded-lg text-sm">
-                                                {remote.name}
+                                                {raisedHandsSet.has(remote.id) && (
+                                                    <div className="absolute top-2 right-2 bg-yellow-500 text-black px-2 py-1 rounded-lg text-xs font-bold">
+                                                        ✋
+                                                    </div>
+                                                )}
+
+                                                <RemoteVideo
+                                                    stream={remote.stream}
+                                                />
+
+                                                <div className="absolute top-2 left-2 bg-black/60 px-3 py-1 rounded-lg text-sm">
+                                                    {remote.name}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                             </div>
                         </div>
 
@@ -228,6 +233,13 @@ export default function VideoLayout({
                                                 : "h-full"
                                                 }`}
                                         >
+
+                                            {raisedHandsSet.has(remote.id) && (
+                                                <div className="absolute top-2 right-2 z-20 text-black px-2 py-1 rounded-lg text-md font-bold">
+                                                    ✋
+                                                </div>
+                                            )}
+
                                             <RemoteVideo
                                                 stream={remote.stream}
                                             />
