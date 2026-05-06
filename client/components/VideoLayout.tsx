@@ -51,7 +51,6 @@ export default function VideoLayout({
         await navigator.clipboard.writeText(
             roomId.toString()
         );
-        alert("Room ID copied");
     };
 
     const gridClass = useMemo(() => {
