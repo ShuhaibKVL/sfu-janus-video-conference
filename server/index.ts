@@ -35,9 +35,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on(SOCKET_EVENTS.RAISE_HAND, (data: { roomId: string, raised: boolean }) => {
-        console.log("Received raise hand event:", data);
         const user = userMap.get(socket.id);
-        console.log("User info for socket:", user);
         if (!user) return;
 
         socket.to(data.roomId).emit(SOCKET_EVENTS.RAISE_HAND, {
@@ -45,16 +43,31 @@ io.on("connection", (socket) => {
             username: user.username,
             raised: data.raised,
         });
-
-        console.log("Emitted raise hand event to room:", data.roomId);
     });
 
-    socket.on(SOCKET_EVENTS.REACTION, (data: { roomId: string; reaction: string }) => {
-        socket.to(data.roomId).emit(SOCKET_EVENTS.REACTION, data);
+    socket.on(SOCKET_EVENTS.REACTION, (data) => {
+        const user = userMap.get(socket.id);
+        if (!user) return;
+
+        socket.to(data.roomId).emit(SOCKET_EVENTS.REACTION, {
+            reaction: data.reaction,
+            publisherId: user.publisherId,
+            username: user.username,
+        });
     });
 
     socket.on(SOCKET_EVENTS.MUTE_TOGGLE, (data: { roomId: string; isMuted: boolean }) => {
         socket.to(data.roomId).emit(SOCKET_EVENTS.MUTE_TOGGLE, data);
+    });
+
+    socket.on(SOCKET_EVENTS.CAMERA_TOGGLE, (data) => {
+        const user = userMap.get(socket.id);
+        if (!user) return;
+
+        socket.to(user.roomId).emit(SOCKET_EVENTS.CAMERA_TOGGLE, {
+            publisherId: user.publisherId,
+            isCameraOff: data.isCameraOff,
+        });
     });
 
     socket.on(SOCKET_EVENTS.CHAT, (data: { roomId: string; message: string; username: string }) => {

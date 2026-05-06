@@ -7,6 +7,7 @@ import adapter from "webrtc-adapter";
 import VideoLayout from "@/components/VideoLayout";
 import { useSocket } from "@/hooks/useSocket";
 import { SOCKET_EVENTS } from "@/lib/constants";
+import { IReaction } from "@/types/socket.types";
 
 
 declare global {
@@ -24,11 +25,12 @@ export default function RoomPage() {
     const username =
         searchParams.get("username") || "Guest";
 
+    const { emitRaiseHand, socketRef } = useSocket(roomId, username);
     const localVideoRef =
         useRef<HTMLVideoElement | null>(null);
 
     const [remoteStreams, setRemoteStreams] =
-        useState<{ id: string; stream: MediaStream, name: string }[]>(
+        useState<{ id: string; stream: MediaStream, name: string, isCameraOff: boolean }[]>(
             []
         );
 
@@ -52,7 +54,11 @@ export default function RoomPage() {
         } | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [raisedHandsSet, setRaisedHandsSet] = useState<Set<string>>(new Set());
-    const { emitRaiseHand, socketRef } = useSocket(roomId, username);
+    const [reactions, setReactions] = useState<
+        IReaction[]
+    >([]);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOff, setIsCameraOff] = useState(false);
 
     // ------------------  ---  --------------------
 
@@ -216,23 +222,22 @@ export default function RoomPage() {
 
                         if (msg.videoroom === "joined") {
                             console.log("Successfully joined room:", msg.room);
+
+                            const publisherId = msg.id; // Janus ID
+                            publisherIdRef.current = msg.id; // ALWAYS set this 
+
+                            // send to socket server
+                            socketRef.current?.emit(SOCKET_EVENTS.REGISTER_USER, {
+                                roomId,
+                                socketId: socketRef.current.id,
+                                publisherId,
+                                username,
+                            });
+
                             if (
                                 msg.publishers &&
                                 msg.publishers.length > 0
                             ) {
-                                console.log("Existing publishers in the room:", msg.publishers);
-                                const publisherId = msg.id; // Janus ID
-
-                                publisherIdRef.current = msg.id;
-
-                                // send to socket server
-                                socketRef.current?.emit(SOCKET_EVENTS.REGISTER_USER, {
-                                    roomId,
-                                    socketId: socketRef.current.id,
-                                    publisherId,
-                                    username,
-                                });
-
                                 msg.publishers.forEach(
                                     (publisher: any) => {
                                         if (!subscribedFeeds.current.has(publisher.id)) {
@@ -467,23 +472,22 @@ export default function RoomPage() {
     }, []);
 
     useEffect(() => {
-        if (
-            localVideoRef.current &&
-            localStream &&
-            localVideoRef.current.srcObject !== localStream
-        ) {
-            localVideoRef.current.srcObject = localStream;
-        }
-    }, [localStream, sharedScreen]);
+        if (!localVideoRef.current || !localStream) return;
 
+        if (!isCameraOff) {
+            localVideoRef.current.srcObject = localStream;
+        } else {
+            localVideoRef.current.srcObject = null; // ✅ FORCE CLEAR
+        }
+    }, [localStream, isCameraOff]);
+
+    // socket listners
     useEffect(() => {
         const socket = socketRef.current;
-        console.log("Setting up socket listeners... :", socket);
-        if (!socket) return;
-        console.log("Socket is available, setting up raise hand listener...");
-        socket.on(SOCKET_EVENTS.RAISE_HAND, (data) => {
-            console.log("Received raise hand event:", data);
 
+        if (!socket) return;
+        // Listen for raise hand events
+        socket.on(SOCKET_EVENTS.RAISE_HAND, (data) => {
             const id = String(data.publisherId)
 
             setRaisedHandsSet(prev => {
@@ -498,9 +502,41 @@ export default function RoomPage() {
                 return newSet;
             });
         });
+        // Listen for reactions
+        socket.on(SOCKET_EVENTS.REACTION, (data) => {
+            const id = `${Date.now()}-${Math.random()}`;
+
+            const reactionItem = {
+                id,
+                emoji: data.reaction,
+                left: Math.random() * 80 + 10,
+                userName: data?.username,
+                userId: data?.userId,
+            };
+
+            setReactions((prev) => [...prev, reactionItem]);
+
+            setTimeout(() => {
+                setReactions((prev) =>
+                    prev.filter((r) => r.id !== id)
+                );
+            }, 2000);
+        });
+        //listen for camera toggle
+        socket.on(SOCKET_EVENTS.CAMERA_TOGGLE, (data) => {
+            setRemoteStreams((prev) =>
+                prev.map((user) =>
+                    user.id === data.publisherId.toString()
+                        ? { ...user, isCameraOff: data.isCameraOff }
+                        : user
+                )
+            );
+        });
 
         return () => {
             socket.off(SOCKET_EVENTS.RAISE_HAND);
+            socket.off(SOCKET_EVENTS.REACTION);
+            socket.off(SOCKET_EVENTS.CAMERA_TOGGLE);
         };
     }, []);
 
@@ -527,29 +563,23 @@ export default function RoomPage() {
     };
 
     const toggleRaiseHand = () => {
-        console.log("Toggling raise hand... :", socketRef.current);
-        const socket = socketRef.current;
         const myPublisherId = publisherIdRef.current;
-
-        if (!myPublisherId) {
-            console.warn("Publisher ID not ready yet");
-            return;
-        }
-
-        if (!socket || !socket?.id) return;
+        if (!myPublisherId) return;
 
         const idStr = myPublisherId.toString();
         const isRaised = raisedHandsSet.has(idStr);
 
+        // instant UI update
+        setRaisedHandsSet(prev => {
+            const newSet = new Set(prev);
+            if (isRaised) newSet.delete(idStr);
+            else newSet.add(idStr);
+            return newSet;
+        });
+
         emitRaiseHand({
             roomId,
-            userId: socket.id,
-            username,
-            raised: !isRaised,
-        });
-        console.log("Emitted raise hand event with data:", {
-            roomId,
-            userId: myPublisherId,
+            userId: socketRef.current?.id,
             username,
             raised: !isRaised,
         });
@@ -643,6 +673,81 @@ export default function RoomPage() {
         }
     };
 
+    const sendReaction = (emoji: string) => {
+        const id = `${Date.now()}-${Math.random()}`;
+
+        const reactionItem = {
+            id,
+            emoji,
+            left: Math.random() * 80 + 10,
+        };
+
+        setReactions((prev) => [...prev, reactionItem]);
+
+        setTimeout(() => {
+            setReactions((prev) =>
+                prev.filter((r) => r.id !== id)
+            );
+        }, 2000);
+
+        socketRef.current?.emit(SOCKET_EVENTS.REACTION, {
+            roomId,
+            reaction: emoji,
+            userName: username,
+            userId: socketRef.current?.id,
+        });
+    };
+
+    const toggleMic = () => {
+        if (!publisherRef.current || !localStream) return;
+
+        const newMutedState = !isMuted;
+
+        // Local UI
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = !newMutedState;
+        });
+
+        // Janus control
+        publisherRef.current.send({
+            message: {
+                request: "configure",
+                audio: !newMutedState,
+            },
+        });
+
+        setIsMuted(newMutedState);
+    };
+
+    const toggleCamera = () => {
+        if (!publisherRef.current || !localStream) return;
+
+        const newState = !isCameraOff;
+
+        // Control actual track (IMPORTANT)
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = !newState;
+        });
+
+        // Tell Janus
+        publisherRef.current.send({
+            message: {
+                request: "configure",
+                video: !newState,
+            },
+        });
+
+        // Update UI
+        setIsCameraOff(newState);
+
+        // Notify others (VERY IMPORTANT)
+        socketRef.current?.emit(SOCKET_EVENTS.CAMERA_TOGGLE, {
+            roomId,
+            userId: socketRef.current?.id,
+            isCameraOff: newState,
+        });
+    };
+
     return (
         <VideoLayout
             localVideoRef={localVideoRef}
@@ -655,7 +760,13 @@ export default function RoomPage() {
             isScreenSharing={isScreenSharing}
             raiseHand={toggleRaiseHand}
             raisedHandsSet={raisedHandsSet}
-            myPublisherId={publisherIdRef.current?.toString() || null}
+            myPublisherId={publisherIdRef.current}
+            handleReaction={sendReaction}
+            reactions={reactions}
+            toggleCamera={toggleCamera}
+            toggleMic={toggleMic}
+            isMuted={isMuted}
+            isCameraOff={isCameraOff}
         />
     );
 }

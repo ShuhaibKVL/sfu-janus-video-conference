@@ -30,6 +30,7 @@ type Props = {
     unreadCount?: number;
     isNoiseCancellationOn: boolean;
     toggleNoiseCancellation: () => void;
+    isHandRaised: boolean;
 };
 
 const MeetingControls = ({
@@ -49,6 +50,7 @@ const MeetingControls = ({
     // toggleNoiseCancellation,
 
     unreadCount = 0,
+    isHandRaised = false,
 }: Props) => {
     const [showReactions, setShowReactions] = useState(false);
     const popupRef = useRef<HTMLDivElement | null>(null);
@@ -166,7 +168,10 @@ const MeetingControls = ({
 
                 <button
                     onClick={raiseHand}
-                    className="w-14 h-14 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition"
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition ${isHandRaised
+                        ? "bg-sky-500 hover:bg-sky-600"
+                        : "bg-slate-800 hover:bg-slate-700"
+                        }`}
                     title="Raise Hand"
                 >
                     <Hand className="text-white" size={22} />

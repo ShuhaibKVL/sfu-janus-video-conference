@@ -53,3 +53,35 @@ body {
 .animate-slide-in {
   animation: slide-in 0.3s ease;
 }
+
+/* Reaction animation: float up and fade out */
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0.9);
+    opacity: 1;
+    /* 🔥 FULL visible at start */
+    filter: saturate(1.4);
+    /* 🔥 richer color */
+  }
+
+  20% {
+    opacity: 1;
+    /* hold visibility a bit */
+    transform: translateY(-40px) scale(1.1);
+  }
+
+  60% {
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translateY(-300px) scale(1.4);
+    opacity: 0;
+    /* fade only at end */
+    filter: saturate(1);
+  }
+}
+
+.animate-float {
+  animation: floatUp 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

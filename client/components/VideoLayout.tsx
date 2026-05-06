@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import RemoteVideo from "./RemoteVideo";
 import { MAX_VISIBLE_STREAMS } from "@/lib/constants";
 import MeetingControls from "./MeetingControls";
+import { IReaction } from "@/types/socket.types";
 
 interface RemoteStreamItem {
     id: string;
     stream: MediaStream;
     name: string;
+    isCameraOff: boolean;
 }
 
 interface VideoLayoutProps {
@@ -19,6 +21,9 @@ interface VideoLayoutProps {
     startScreenShare: () => void;
     stopScreenShare: () => void;
     raiseHand: () => void;
+    toggleMic: () => void;
+    toggleCamera: () => void;
+    handleReaction: (emoji: string) => void;
     raisedHandsSet: Set<string>;
     sharedScreen: {
         id: string;
@@ -27,6 +32,9 @@ interface VideoLayoutProps {
     } | null;
     isScreenSharing: boolean;
     myPublisherId: number | null;
+    reactions: IReaction[];
+    isMuted: boolean;
+    isCameraOff: boolean;
 }
 
 export default function VideoLayout({
@@ -39,8 +47,14 @@ export default function VideoLayout({
     stopScreenShare,
     isScreenSharing,
     raiseHand,
+    handleReaction,
     raisedHandsSet,
     myPublisherId,
+    reactions,
+    toggleMic,
+    toggleCamera,
+    isMuted,
+    isCameraOff,
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -52,6 +66,10 @@ export default function VideoLayout({
             roomId.toString()
         );
     };
+
+    const isMyHandRaised = myPublisherId
+        ? raisedHandsSet.has(myPublisherId.toString())
+        : false;
 
     const gridClass = useMemo(() => {
         const total = visibleRemotes.length;
@@ -117,11 +135,34 @@ export default function VideoLayout({
             </main>
         );
     }
-    console.log('Raised Hands Set:', raisedHandsSet);
-    console.log('Visible Remotes:', visibleRemotes);
+    console.log("isCameraOff:", isCameraOff);
 
     return (
         <>
+            <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+                {reactions.map((r) => (
+                    <div
+                        key={r.id}
+                        className="absolute bottom-10 flex flex-col items-center animate-float"
+                        style={{
+                            left: `${r.left}%`,
+                        }}
+                    >
+                        {/* Emoji */}
+                        <div className="text-4xl drop-shadow-lg">
+                            {r.emoji}
+                        </div>
+
+                        {/* Username */}
+                        {r?.userName && r?.userName?.trim() !== "" && (
+                            <div className="text-[10px] max-w-[80px] truncate mt-1 px-2 py-[2px] rounded bg-black/60 text-white whitespace-nowrap">
+                                {r?.userName}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
             {sharedScreen ? (
                 <main className="h-screen bg-black text-white p-4 md:p-6 overflow-hidden">
                     <div className="max-w-7xl mx-auto h-full flex flex-col">
@@ -160,9 +201,15 @@ export default function VideoLayout({
                                                     </div>
                                                 )}
 
-                                                <RemoteVideo
-                                                    stream={remote.stream}
-                                                />
+                                                {remote.isCameraOff ? (
+                                                    <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white">
+                                                        <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                                                            {remote.name?.charAt(0)}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <RemoteVideo stream={remote.stream} />
+                                                )}
 
                                                 <div className="absolute top-2 left-2 bg-black/60 px-3 py-1 rounded-lg text-sm">
                                                     {remote.name}
@@ -175,13 +222,19 @@ export default function VideoLayout({
 
                         {/* LOCAL SELF VIEW */}
                         <div className="absolute bottom-28 right-8 w-[180px] md:w-[220px] rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl z-20">
-                            <video
-                                ref={localVideoRef}
-                                autoPlay
-                                muted
-                                playsInline
-                                className="w-full h-full object-cover"
-                            />
+                            {isCameraOff ? (
+                                <div className="w-full h-full bg-black flex items-center justify-center text-white text-sm">
+                                    Camera Off
+                                </div>
+                            ) : (
+                                <video
+                                    ref={localVideoRef}
+                                    autoPlay
+                                    muted
+                                    playsInline
+                                    className="w-full h-full object-cover"
+                                />
+                            )}
 
                             <div className="absolute bottom-2 left-2 text-xs md:text-sm font-medium bg-black/60 px-2 py-1 rounded-lg">
                                 You
@@ -239,9 +292,15 @@ export default function VideoLayout({
                                                 </div>
                                             )}
 
-                                            <RemoteVideo
-                                                stream={remote.stream}
-                                            />
+                                            {remote.isCameraOff ? (
+                                                <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white">
+                                                    <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                                                        {remote.name?.charAt(0)}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <RemoteVideo stream={remote.stream} />
+                                            )}
 
                                             <div className="absolute top-3 left-3 bg-black/60 px-3 py-1 rounded-lg text-sm font-medium">
                                                 {remote.name ||
@@ -265,13 +324,19 @@ export default function VideoLayout({
 
                             {/* LOCAL SELF VIEW */}
                             <div className="absolute bottom-5 right-5 w-[180px] md:w-[220px] rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl z-20">
-                                <video
-                                    ref={localVideoRef}
-                                    autoPlay
-                                    muted
-                                    playsInline
-                                    className="w-full h-full object-cover"
-                                />
+                                {isCameraOff ? (
+                                    <div className="w-full aspect-video bg-gray-900 flex items-center justify-center text-white text-sm">
+                                        Camera Off
+                                    </div>
+                                ) : (
+                                    <video
+                                        ref={localVideoRef}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        className="w-full h-full object-cover"
+                                    />
+                                )}
 
                                 <div className="absolute bottom-2 left-2 text-xs md:text-sm font-medium bg-black/60 px-2 py-1 rounded-lg">
                                     You
@@ -283,19 +348,20 @@ export default function VideoLayout({
             )}
 
             <MeetingControls
-                isMuted={false}
-                isCameraOff={false}
+                isMuted={isMuted}
+                isCameraOff={isCameraOff}
                 isScreenSharing={isScreenSharing}
                 isChatOpened={false}
                 isNoiseCancellationOn={false}
+                isHandRaised={isMyHandRaised}
                 unreadCount={0}
-                toggleMic={() => { }}
-                toggleCamera={() => { }}
+                toggleMic={toggleMic}
+                toggleCamera={toggleCamera}
                 toggleScreenShare={startScreenShare}
                 stopScreenShare={stopScreenShare}
                 raiseHand={raiseHand}
                 toggleChat={() => { }}
-                sendReaction={() => { }}
+                sendReaction={handleReaction}
                 toggleNoiseCancellation={() => { }}
                 leaveMeeting={leaveMeeting}
             />
