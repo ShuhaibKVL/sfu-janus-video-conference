@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
-export default function RemoteVideo({
+export default memo(function RemoteVideo({
     stream,
 }: {
     stream: MediaStream;
@@ -11,9 +11,30 @@ export default function RemoteVideo({
         useRef<HTMLVideoElement | null>(null);
 
     useEffect(() => {
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-        }
+        if (!videoRef.current) return;
+
+        videoRef.current.srcObject = stream;
+
+        /**
+         * PERFORMANCE OPTIMIZATION
+         */
+
+        videoRef.current.playsInline = true;
+
+        /**
+         * Hint browser:
+         * prioritize smooth playback over quality
+         */
+        videoRef.current.setAttribute(
+            "playsinline",
+            "true"
+        );
+
+        /**
+         * Safari + mobile optimization
+         */
+        videoRef.current.disablePictureInPicture = true;
+
     }, [stream]);
 
     return (
@@ -21,7 +42,9 @@ export default function RemoteVideo({
             ref={videoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-cover"
+            muted={false}
+            preload="none"
+            className="w-full h-full object-cover will-change-transform transform-gpu"
         />
     );
-}
+});

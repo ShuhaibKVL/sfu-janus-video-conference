@@ -59,6 +59,12 @@ export default function RoomPage() {
     >([]);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
+    const [messages, setMessages] = useState<IChatMessage[]>([]);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const notificationAudioRef =
+        useRef<HTMLAudioElement | null>(null);
+    const isChatOpenRef = useRef(false);
 
     // ------------------  ---  --------------------
 
@@ -147,7 +153,7 @@ export default function RoomPage() {
 
                         if (existing) {
                             existing.stream.addTrack(track);
-                            return [...prev];
+                            return prev;
                         }
 
                         const remoteStream = new MediaStream();
@@ -262,7 +268,12 @@ export default function RoomPage() {
                                     },
                                     {
                                         type: "video",
-                                        capture: true,
+                                        capture: { // user send 640x360 15 FPS stable
+                                            width: { ideal: 640 },
+                                            height: { ideal: 480 },
+                                            frameRate: { ideal: 15, max: 20 },
+
+                                        },
                                         recv: false,
                                     },
                                 ],
@@ -274,6 +285,8 @@ export default function RoomPage() {
                                             request: "publish",
                                             audio: true,
                                             video: true,
+                                            bitrate: 512000, // 512 kbps
+                                            videocodec: "vp8",
                                         },
                                         jsep,
                                     });
@@ -430,9 +443,12 @@ export default function RoomPage() {
             console.error("Leave meeting error:", error);
         }
     };
-
+    // Initialization and Janus setup
     useEffect(() => {
         window.adapter = adapter;
+
+        notificationAudioRef.current =
+            new Audio("/sounds/soundreality-notification-center-443093.mp3");
 
         Janus.init({
             debug: "all",
@@ -480,6 +496,10 @@ export default function RoomPage() {
             localVideoRef.current.srcObject = null; // ✅ FORCE CLEAR
         }
     }, [localStream, isCameraOff]);
+
+    useEffect(() => {
+        isChatOpenRef.current = isChatOpen;
+    }, [isChatOpen]);
 
     // socket listners
     useEffect(() => {
@@ -532,11 +552,29 @@ export default function RoomPage() {
                 )
             );
         });
+        socket.on(SOCKET_EVENTS.CHAT, (message) => {
+            setMessages((prev) => [...prev, message]);
+            if (!isChatOpenRef.current) {
+                setUnreadCount((prev) => prev + 1);
+
+                const audio = notificationAudioRef.current;
+
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+
+                    audio.play().catch(() => {
+                        console.warn("Failed to play notification sound");
+                    });
+                }
+            }
+        });
 
         return () => {
             socket.off(SOCKET_EVENTS.RAISE_HAND);
             socket.off(SOCKET_EVENTS.REACTION);
             socket.off(SOCKET_EVENTS.CAMERA_TOGGLE);
+            socket.off(SOCKET_EVENTS.CHAT);
         };
     }, []);
 
@@ -638,7 +676,7 @@ export default function RoomPage() {
                                     type: "video",
                                     capture: displayStream.getVideoTracks()[0],
                                     recv: false,
-                                    simulcast: false,
+                                    simulcast: true,
                                 }
                             ],
 
@@ -748,6 +786,18 @@ export default function RoomPage() {
         });
     };
 
+    const sendMessage = (message: string) => {
+        if (!message.trim()) return;
+
+        socketRef.current?.emit(
+            SOCKET_EVENTS.CHAT,
+            {
+                roomId,
+                message,
+            }
+        );
+    };
+
     return (
         <VideoLayout
             localVideoRef={localVideoRef}
@@ -767,6 +817,12 @@ export default function RoomPage() {
             toggleMic={toggleMic}
             isMuted={isMuted}
             isCameraOff={isCameraOff}
+            messages={messages}
+            sendMessage={sendMessage}
+            isChatOpen={isChatOpen}
+            setIsChatOpen={setIsChatOpen}
+            unreadCount={unreadCount}
+            setUnreadCount={setUnreadCount}
         />
     );
 }

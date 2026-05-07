@@ -20,5 +20,5 @@ export const SOCKET_EVENTS = {
     CHAT: "chat-message",
 
     USER_LIST: "user-list",
-    CAMERA_TOGGLE: "camera-toggle", 
+    CAMERA_TOGGLE: "camera-toggle",
 };

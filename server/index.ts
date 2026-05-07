@@ -70,8 +70,21 @@ io.on("connection", (socket) => {
         });
     });
 
-    socket.on(SOCKET_EVENTS.CHAT, (data: { roomId: string; message: string; username: string }) => {
-        io.to(data.roomId).emit(SOCKET_EVENTS.CHAT, data);
+    socket.on(SOCKET_EVENTS.CHAT, (data) => {
+        const user = userMap.get(socket.id);
+
+        if (!user) return;
+
+        io.to(data.roomId).emit(
+            SOCKET_EVENTS.CHAT,
+            {
+                id: crypto.randomUUID(),
+                sender: user.username,
+                senderId: user.publisherId,
+                message: data.message,
+                timestamp: Date.now(),
+            }
+        )
     });
 
     socket.on("disconnect", () => {
