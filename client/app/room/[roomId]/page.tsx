@@ -33,10 +33,12 @@ export default function RoomPage() {
         useState<{ id: string; stream: MediaStream, name: string, isCameraOff: boolean }[]>(
             []
         );
+    const [visibleStreamIds, setVisibleStreamIds] =
+        useState<string[]>([]);
 
     const janusRef = useRef<any>(null);
     const publisherRef = useRef<any>(null);
-    const subscriberRefs = useRef<any[]>([]);
+    const subscriberRefs = useRef<Map<number, any>>(new Map());
     const publisherIdRef = useRef<number | null>(null);
     const subscribedFeeds =
         useRef<Set<number>>(new Set());
@@ -80,7 +82,7 @@ export default function RoomPage() {
             success: (pluginHandle: any) => {
                 console.log("Attached to plugin for subscribing with handle ID:", pluginHandle.getId());
                 subscriberHandle = pluginHandle;
-                subscriberRefs.current.push(pluginHandle);
+                subscriberRefs.current.set(publisherId, pluginHandle);
 
                 subscriberHandle.send({
                     message: {
@@ -405,7 +407,7 @@ export default function RoomPage() {
             /**
              * Leave all subscribers
              */
-            subscriberRefs.current.forEach((subscriber) => {
+            for (const subscriber of subscriberRefs.current.values()) {
                 try {
                     subscriber.send({
                         message: {
@@ -414,13 +416,24 @@ export default function RoomPage() {
                     });
 
                     subscriber.hangup();
-                    subscriber.detach();
+
+                    subscriber.detach({
+                        success: () => {
+                            console.log("Subscriber detached");
+                        },
+                        error: (err: any) => {
+                            console.error(
+                                "Subscriber detach error:",
+                                err
+                            );
+                        },
+                    });
                 } catch (error) {
                     console.error(error);
                 }
-            });
+            }
 
-            subscriberRefs.current = [];
+            subscriberRefs.current.clear();
 
             /**
              * Destroy Janus session
@@ -439,6 +452,7 @@ export default function RoomPage() {
              * Redirect
              */
             router.push("/");
+
         } catch (error) {
             console.error("Leave meeting error:", error);
         }
@@ -486,20 +500,39 @@ export default function RoomPage() {
             window.removeEventListener("beforeunload", cleanupJanus);
         };
     }, []);
-
+    // Listen for local stream changes to update video element
     useEffect(() => {
         if (!localVideoRef.current || !localStream) return;
 
         if (!isCameraOff) {
             localVideoRef.current.srcObject = localStream;
         } else {
-            localVideoRef.current.srcObject = null; // ✅ FORCE CLEAR
+            localVideoRef.current.srcObject = null; // FORCE CLEAR
         }
     }, [localStream, isCameraOff]);
 
     useEffect(() => {
         isChatOpenRef.current = isChatOpen;
     }, [isChatOpen]);
+    // Handle visible stream changes to optimize bandwidth
+    useEffect(() => {
+        subscriberRefs.current.forEach(
+            (subscriber, publisherId) => {
+                const shouldReceiveVideo =
+                    visibleStreamIds.includes(
+                        publisherId.toString()
+                    );
+
+                subscriber.send({
+                    message: {
+                        request: "configure",
+                        audio: true,
+                        video: shouldReceiveVideo,
+                    },
+                });
+            }
+        );
+    }, [visibleStreamIds]);
 
     // socket listners
     useEffect(() => {
@@ -823,6 +856,18 @@ export default function RoomPage() {
             setIsChatOpen={setIsChatOpen}
             unreadCount={unreadCount}
             setUnreadCount={setUnreadCount}
+            onVisibleStreamsChange={(ids) => {
+                setVisibleStreamIds(prev => {
+                    if (
+                        prev.length === ids.length &&
+                        prev.every((id, i) => id === ids[i])
+                    ) {
+                        return prev;
+                    }
+
+                    return ids;
+                });
+            }}
         />
     );
 }

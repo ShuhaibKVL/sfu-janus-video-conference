@@ -44,6 +44,10 @@ export default memo(function RemoteVideo({
             playsInline
             muted={false}
             preload="none"
+            style={{
+                willChange: "transform",
+                transform: "translateZ(0)",
+            }}
             className="w-full h-full object-cover will-change-transform transform-gpu"
         />
     );

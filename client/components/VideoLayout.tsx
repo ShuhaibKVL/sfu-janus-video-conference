@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RemoteVideo from "./RemoteVideo";
 import { MAX_VISIBLE_STREAMS } from "@/lib/constants";
 import MeetingControls from "./MeetingControls";
@@ -45,6 +45,10 @@ interface VideoLayoutProps {
     setIsChatOpen: React.Dispatch<React.SetStateAction<boolean>>;
     unreadCount: number;
     setUnreadCount: React.Dispatch<React.SetStateAction<number>>;
+
+    onVisibleStreamsChange: (
+        ids: string[]
+    ) => void;
 }
 
 export default function VideoLayout({
@@ -70,7 +74,8 @@ export default function VideoLayout({
     isChatOpen,
     setIsChatOpen,
     unreadCount,
-    setUnreadCount
+    setUnreadCount,
+    onVisibleStreamsChange,
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -83,13 +88,23 @@ export default function VideoLayout({
      * reserve last slot for "+X more"
      */
 
-    const visibleRemotes = hasExtraUsers
-        ? remoteStreams.slice(0, MAX_VISIBLE_STREAMS - 1)
-        : remoteStreams.slice(0, MAX_VISIBLE_STREAMS);
+    const visibleRemotes = useMemo(() => {
+        return hasExtraUsers
+            ? remoteStreams.slice(0, MAX_VISIBLE_STREAMS - 1)
+            : remoteStreams.slice(0, MAX_VISIBLE_STREAMS);
+    }, [remoteStreams, hasExtraUsers]);
 
     const extraCount = hasExtraUsers
         ? remoteStreams.length - visibleRemotes.length
         : 0;
+    // track visible streams change and notify parent 
+    const visibleIds = useMemo(() => {
+        return visibleRemotes.map(remote => remote.id);
+    }, [visibleRemotes]);
+
+    useEffect(() => {
+        onVisibleStreamsChange(visibleIds);
+    }, [visibleIds, onVisibleStreamsChange]);
 
     const copyRoomId = async () => {
         await navigator.clipboard.writeText(
@@ -263,11 +278,10 @@ export default function VideoLayout({
                                     absolute bottom-28 z-20
                                     rounded-2xl overflow-hidden
                                     border border-white/20
-                                    bg-black shadow-2xl
-                                    transition-all duration-300
+                                    bg-black transition-all duration-300
                                     w-[180px] md:w-[220px]
                                     ${isChatOpen ? "right-2 md:right-4" : "right-8"}
-    `                           }
+                                `}
                             >
                                 {isCameraOff ? (
                                     <div className="w-full h-full bg-black flex items-center justify-center text-white text-sm">
@@ -296,7 +310,7 @@ export default function VideoLayout({
                                 Janus SFU Video Conference
                             </h1>
 
-                            <div className="relative h-[82vh] rounded-3xl border border-white/10 bg-neutral-900 p-4 shadow-2xl overflow-hidden">
+                            <div className="relative h-[82vh] rounded-3xl border border-white/10 bg-neutral-900 p-4  overflow-hidden">
                                 {visibleRemotes.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center">
                                         <div className="w-full h-[320px] rounded-3xl border border-dashed border-white/20 bg-neutral-800 flex items-center justify-center text-neutral-300 text-lg">
@@ -370,7 +384,7 @@ export default function VideoLayout({
                                 )}
 
                                 {/* LOCAL SELF VIEW */}
-                                <div className="absolute bottom-5 right-5 w-[180px] md:w-[220px] rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl z-20">
+                                <div className="absolute bottom-5 right-5 w-[180px] md:w-[220px] rounded-2xl overflow-hidden border border-white/20 bg-black  z-20">
                                     {isCameraOff ? (
                                         <div className="w-full aspect-video bg-gray-900 flex items-center justify-center text-white text-sm">
                                             Camera Off
