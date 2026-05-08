@@ -8,6 +8,7 @@ import VideoLayout from "@/components/VideoLayout";
 import { useSocket } from "@/hooks/useSocket";
 import { SOCKET_EVENTS } from "@/lib/constants";
 import { IReaction } from "@/types/socket.types";
+import { useDominantSpeaker } from "@/hooks/useDominantSpeacker";
 
 
 declare global {
@@ -67,6 +68,14 @@ export default function RoomPage() {
     const notificationAudioRef =
         useRef<HTMLAudioElement | null>(null);
     const isChatOpenRef = useRef(false);
+    const speakerStreams = remoteStreams.map(
+        (remote) => ({
+            stream: remote.stream,
+            publisherId: remote.id,
+        })
+    );
+    const activeSpeakerId =
+        useDominantSpeaker(speakerStreams);
 
     // ------------------  ---  --------------------
 
@@ -868,6 +877,7 @@ export default function RoomPage() {
                     return ids;
                 });
             }}
+            activeSpeakerId={activeSpeakerId}
         />
     );
 }

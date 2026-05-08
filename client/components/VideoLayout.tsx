@@ -49,6 +49,7 @@ interface VideoLayoutProps {
     onVisibleStreamsChange: (
         ids: string[]
     ) => void;
+    activeSpeakerId: string | null;
 }
 
 export default function VideoLayout({
@@ -76,6 +77,7 @@ export default function VideoLayout({
     unreadCount,
     setUnreadCount,
     onVisibleStreamsChange,
+    activeSpeakerId
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -245,7 +247,17 @@ export default function VideoLayout({
                                             return (
                                                 <div
                                                     key={remote.id}
-                                                    className="relative flex-1 rounded-2xl overflow-hidden border border-white/10 bg-black"
+                                                    className={`
+relative flex-1 rounded-2xl overflow-hidden bg-black
+transition-all duration-300
+${activeSpeakerId === remote.id
+                                                            ? `
+        border border-blue-500
+        shadow-[0_0_30px_rgba(59,130,246,0.9)]
+        `
+                                                            : "border border-white/10"
+                                                        }
+`}
                                                 >
 
                                                     {raisedHandsSet.has(remote.id) && (
@@ -342,10 +354,18 @@ export default function VideoLayout({
                                         {visibleRemotes.map((remote) => (
                                             <div
                                                 key={remote.id}
-                                                className={`relative rounded-2xl overflow-hidden bg-black border border-white/10 ${visibleRemotes.length === 1
-                                                    ? "h-full"
-                                                    : "h-full"
-                                                    }`}
+                                                className={`
+                                                        relative rounded-2xl overflow-hidden bg-black
+                                                        transition-all duration-300
+                                                        ${activeSpeakerId === remote.id
+                                                        ? `
+                                                                border border-blue-500
+                                                                shadow-[0_0_30px_rgba(59,130,246,0.9)]
+                                                                `
+                                                        : "border border-white/10"
+                                                    }
+                                                        ${visibleRemotes.length === 1 ? "h-full" : "h-full"}
+                                                        `}
                                             >
 
                                                 {raisedHandsSet.has(remote.id) && (
