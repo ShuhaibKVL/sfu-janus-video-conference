@@ -180,6 +180,7 @@ export default function VideoLayout({
             </main>
         );
     }
+    console.log('video layout publisher id :"', myPublisherId);
 
     return (
         <div className="h-screen flex bg-black overflow-hidden">
@@ -412,6 +413,7 @@ export default function VideoLayout({
                 <ChatPanel
                     messages={messages}
                     sendMessage={sendMessage}
+                    myPublisherId={myPublisherId ?? null}
                 />
             )}
             <MeetingControls

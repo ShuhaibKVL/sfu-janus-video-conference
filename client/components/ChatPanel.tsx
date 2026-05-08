@@ -6,12 +6,15 @@ import { IChatMessage } from "@/types/chat.types";
 interface Props {
     messages: IChatMessage[];
     sendMessage: (message: string) => void;
+    myPublisherId: number | null;
 }
 
 export default function ChatPanel({
     messages,
     sendMessage,
+    myPublisherId,
 }: Props) {
+    console.log("ChatPanel rendered with messages:", messages);
     const [input, setInput] = useState("");
 
     const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -39,17 +42,33 @@ export default function ChatPanel({
 
             {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((msg) => (
-                    <div key={msg.id}>
-                        <div className="text-xs text-neutral-400 mb-1">
-                            {msg.sender}
-                        </div>
+                {messages.map((msg) => {
+                    const isMine = msg.senderId === myPublisherId;
+                    console.log("isMIne :", isMine, "typeof :", typeof msg.senderId, " ><", typeof myPublisherId);
+                    return (
+                        <div key={msg.id} className={`${isMine ? 'text-right' : 'text-left'}`}>
+                            <div className="text-xs text-neutral-400 mb-1">
+                                {msg.sender}
+                            </div>
 
-                        <div className="bg-neutral-800 rounded-2xl px-4 py-2 text-sm break-words">
-                            {msg.message}
+                            <div
+                                className={`inline-block
+                                            max-w-[80%]
+                                            rounded-2xl
+                                            px-4 py-2
+                                            text-sm
+                                            break-words
+                                        ${isMine
+                                        ? "bg-blue-950 text-white"
+                                        : "bg-neutral-800 text-white"
+                                    }
+    `}
+                            >
+                                {msg.message}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
 
                 <div ref={bottomRef} />
             </div>
