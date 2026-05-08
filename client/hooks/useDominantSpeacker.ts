@@ -159,6 +159,8 @@ export function useDominantSpeaker(
         return () => {
             /**
              * cancel animation loops
+             * 
+             * 
              */
             animationFrames.forEach((frame) =>
                 cancelAnimationFrame(frame)

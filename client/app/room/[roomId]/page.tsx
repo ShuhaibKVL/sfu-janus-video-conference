@@ -323,6 +323,7 @@ export default function RoomPage() {
 
                                         },
                                         recv: false,
+                                        simulcast: true,
                                     },
                                 ],
 
@@ -560,30 +561,66 @@ export default function RoomPage() {
     useEffect(() => {
         isChatOpenRef.current = isChatOpen;
     }, [isChatOpen]);
-    // Handle visible stream changes to optimize bandwidth
+    // Handle layout changes based on visible streams and dominant speaker
     useEffect(() => {
         subscriberRefs.current.forEach(
             (subscriber, publisherId) => {
-                const shouldReceiveVideo =
+
+                const publisherIdStr =
+                    publisherId.toString();
+
+                const isVisible =
                     visibleStreamIds.includes(
-                        publisherId.toString()
+                        publisherIdStr
                     );
+
+                const isDominant =
+                    prioritySpeakerId === publisherIdStr;
+
+                /**
+                 * Layer selection strategy
+                 */
+
+                let substream = 2;
+
+                // dominant speaker
+                if (isDominant) {
+                    substream = 0;
+                }
+
+                // visible grid users
+                else if (isVisible) {
+                    substream = 0;
+                }
+
+                // hidden users
+                else {
+                    substream = 2;
+                }
 
                 subscriber.send({
                     message: {
                         request: "configure",
+
                         audio: true,
+
                         video: true,
-                        substream: shouldReceiveVideo ? 0 : 2, // 0 = high quality, 1 = Medium quality 2 = low quality (or no video)
+
+                        substream,
+
                         /**
-         * Force fresh frame
-         */
-                        keyframe: shouldReceiveVideo,
+                         * force fresh keyframe
+                         */
+                        keyframe: true,
                     },
                 });
             }
         );
-    }, [visibleStreamIds]);
+
+    }, [
+        visibleStreamIds,
+        prioritySpeakerId,
+    ]);
 
     // socket listners
     useEffect(() => {

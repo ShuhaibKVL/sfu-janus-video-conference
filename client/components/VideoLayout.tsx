@@ -233,7 +233,6 @@ export default function VideoLayout({
             </main>
         );
     }
-    console.log('video layout publisher id :"', myPublisherId);
 
     return (
         <div className="h-screen flex bg-black overflow-hidden">
