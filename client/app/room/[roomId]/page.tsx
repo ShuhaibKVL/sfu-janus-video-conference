@@ -307,6 +307,7 @@ export default function RoomPage() {
                                 );
                             }
 
+
                             publisherHandle.createOffer({
                                 tracks: [
                                     {
