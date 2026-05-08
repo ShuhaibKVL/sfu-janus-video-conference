@@ -34,6 +34,8 @@ export default function RoomPage() {
         useState<{ id: string; stream: MediaStream, name: string, isCameraOff: boolean }[]>(
             []
         );
+    const [prioritySpeakerId, setPrioritySpeakerId] =
+        useState<string | null>(null);
     const [visibleStreamIds, setVisibleStreamIds] =
         useState<string[]>([]);
 
@@ -43,6 +45,7 @@ export default function RoomPage() {
     const publisherIdRef = useRef<number | null>(null);
     const subscribedFeeds =
         useRef<Set<number>>(new Set());
+    const lastDominantSwitchRef = useRef(0);
 
     const [isScreenSharing, setIsScreenSharing] =
         useState(false);
@@ -76,6 +79,40 @@ export default function RoomPage() {
     );
     const activeSpeakerId =
         useDominantSpeaker(speakerStreams);
+
+    useEffect(() => {
+        if (!activeSpeakerId) return;
+
+        /**
+         * Is already visible?
+         */
+        const isAlreadyVisible =
+            visibleStreamIds.includes(activeSpeakerId);
+
+        if (isAlreadyVisible) return;
+
+        /**
+         * Prevent rapid layout switching
+         */
+        const now = Date.now();
+
+        const SWITCH_COOLDOWN = 8000;
+
+        if (
+            now - lastDominantSwitchRef.current <
+            SWITCH_COOLDOWN
+        ) {
+            return;
+        }
+
+        lastDominantSwitchRef.current = now;
+
+        /**
+         * Promote hidden speaker
+         */
+        setPrioritySpeakerId(activeSpeakerId);
+
+    }, [activeSpeakerId, visibleStreamIds]);
 
     // ------------------  ---  --------------------
 
@@ -536,7 +573,12 @@ export default function RoomPage() {
                     message: {
                         request: "configure",
                         audio: true,
-                        video: shouldReceiveVideo,
+                        video: true,
+                        substream: shouldReceiveVideo ? 0 : 2, // 0 = high quality, 1 = Medium quality 2 = low quality (or no video)
+                        /**
+         * Force fresh frame
+         */
+                        keyframe: shouldReceiveVideo,
                     },
                 });
             }
@@ -878,6 +920,7 @@ export default function RoomPage() {
                 });
             }}
             activeSpeakerId={activeSpeakerId}
+            prioritySpeakerId={prioritySpeakerId}
         />
     );
 }

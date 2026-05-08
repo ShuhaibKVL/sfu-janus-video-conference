@@ -50,6 +50,7 @@ interface VideoLayoutProps {
         ids: string[]
     ) => void;
     activeSpeakerId: string | null;
+    prioritySpeakerId: string | null;
 }
 
 export default function VideoLayout({
@@ -77,7 +78,8 @@ export default function VideoLayout({
     unreadCount,
     setUnreadCount,
     onVisibleStreamsChange,
-    activeSpeakerId
+    activeSpeakerId,
+    prioritySpeakerId,
 }: VideoLayoutProps) {
     const [showAllParticipants, setShowAllParticipants] =
         useState(false);
@@ -91,10 +93,59 @@ export default function VideoLayout({
      */
 
     const visibleRemotes = useMemo(() => {
+
+        let streams = [...remoteStreams];
+
+        /**
+         * Promote dominant hidden speaker
+         */
+        if (prioritySpeakerId) {
+
+            const hiddenSpeaker =
+                streams.find(
+                    (s) => s.id === prioritySpeakerId
+                );
+
+            const alreadyVisible =
+                streams
+                    .slice(0, MAX_VISIBLE_STREAMS)
+                    .some(
+                        (s) =>
+                            s.id === prioritySpeakerId
+                    );
+
+            /**
+             * Move hidden speaker to front
+             */
+            if (
+                hiddenSpeaker &&
+                !alreadyVisible
+            ) {
+                streams = [
+                    hiddenSpeaker,
+                    ...streams.filter(
+                        (s) =>
+                            s.id !== prioritySpeakerId
+                    ),
+                ];
+            }
+        }
+
         return hasExtraUsers
-            ? remoteStreams.slice(0, MAX_VISIBLE_STREAMS - 1)
-            : remoteStreams.slice(0, MAX_VISIBLE_STREAMS);
-    }, [remoteStreams, hasExtraUsers]);
+            ? streams.slice(
+                0,
+                MAX_VISIBLE_STREAMS - 1
+            )
+            : streams.slice(
+                0,
+                MAX_VISIBLE_STREAMS
+            );
+
+    }, [
+        remoteStreams,
+        hasExtraUsers,
+        prioritySpeakerId,
+    ]);
 
     const extraCount = hasExtraUsers
         ? remoteStreams.length - visibleRemotes.length
