@@ -1,9 +1,16 @@
 export const JANUS_HTTP_URL =
     "http://localhost:8088/janus";
 
+export const SERVER_URL =
+    process.env.NEXT_PUBLIC_SERVER_URL ||
+    "http://localhost:5000";
+
 export const NEXT_HANDLER_URL = {
     API: "/api",
     CREATE_ROOM: "/create-room",
+    SIGN_UP: "/api/user/register",
+    LOGIN: "/api/user/login",
+    ME: "/api/user/me",
 };
 
 export const MAX_VISIBLE_STREAMS = 6;
@@ -22,3 +29,11 @@ export const SOCKET_EVENTS = {
     USER_LIST: "user-list",
     CAMERA_TOGGLE: "camera-toggle",
 };
+
+export const BACKEND_URLS = {
+    AUTH: {
+        LOGIN: `${SERVER_URL}/api/auth/login`,
+        REGISTER: `${SERVER_URL}/api/auth/register`,
+        ME: `${SERVER_URL}/api/auth/me`,
+    },
+}

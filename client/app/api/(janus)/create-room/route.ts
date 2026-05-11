@@ -8,8 +8,6 @@ export async function POST() {
           STEP 1
           Create Janus Session
         */
-       
-
         const createSessionRes = await fetch(
             JANUS_HTTP_URL,
             {

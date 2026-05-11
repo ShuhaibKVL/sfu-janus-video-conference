@@ -26,6 +26,13 @@ export default function RoomPage() {
     const username =
         searchParams.get("username") || "Guest";
 
+    const selectedDevices =
+        sessionStorage.getItem("selectedDevices");
+
+    const parsedDevices = selectedDevices
+        ? JSON.parse(selectedDevices)
+        : null;
+
     const { emitRaiseHand, socketRef } = useSocket(roomId, username);
     const localVideoRef =
         useRef<HTMLVideoElement | null>(null);
@@ -221,12 +228,59 @@ export default function RoomPage() {
         });
     };
 
-    const startJanus = () => {
+    // device setup and permissions
+    const createLocalMediaStream = async () => {
+
+        try {
+
+            const stream =
+                await navigator.mediaDevices.getUserMedia({
+                    video: parsedDevices?.cameraId
+                        ? {
+                            deviceId: {
+                                exact: parsedDevices.cameraId
+                            }
+                        }
+                        : true,
+
+                    audio: parsedDevices?.micId
+                        ? {
+                            deviceId: {
+                                exact: parsedDevices.micId
+                            }
+                        }
+                        : true,
+                });
+
+            setLocalStream(stream);
+
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            return stream;
+
+        } catch (error) {
+
+            console.error("Media stream error:", error);
+
+            alert("Failed to access camera/microphone");
+
+            return null;
+        }
+    };
+
+    const startJanus = async () => {
         console.log("Starting Janus with room ID:", roomId, "and username:", username);
         janusRef.current = new Janus({
             server: "ws://localhost:8188",
 
-            success: () => {
+            success: async () => {
+                const mediaStream =
+                    await createLocalMediaStream();
+
+                if (!mediaStream) return;
+
                 let publisherHandle: any;
 
                 janusRef.current.attach({
@@ -309,21 +363,41 @@ export default function RoomPage() {
 
 
                             publisherHandle.createOffer({
+                                // tracks: [
+                                //     {
+                                //         type: "audio",
+                                //         capture: true,
+                                //         recv: false,
+                                //     },
+                                //     {
+                                //         type: "video",
+                                //         capture: { // user send 640x360 15 FPS stable
+                                //             width: { ideal: 640 },
+                                //             height: { ideal: 480 },
+                                //             frameRate: { ideal: 15, max: 20 },
+
+                                //         },
+                                //         recv: false,
+                                //         simulcast: true,
+                                //     },
+                                // ],
                                 tracks: [
                                     {
                                         type: "audio",
-                                        capture: true,
+                                        capture:
+                                            mediaStream.getAudioTracks()[0],
+
                                         recv: false,
                                     },
+
                                     {
                                         type: "video",
-                                        capture: { // user send 640x360 15 FPS stable
-                                            width: { ideal: 640 },
-                                            height: { ideal: 480 },
-                                            frameRate: { ideal: 15, max: 20 },
 
-                                        },
+                                        capture:
+                                            mediaStream.getVideoTracks()[0],
+
                                         recv: false,
+
                                         simulcast: true,
                                     },
                                 ],
