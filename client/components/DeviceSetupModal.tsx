@@ -115,7 +115,7 @@ export default function DeviceSetupModal({
             setPreviewStream(stream);
 
             if (videoRef.current) {
-                videoRef.current.srcObject = stream;
+                videoRef.current.srcObject = cameraEnabled ? stream : null;;
             }
 
         } catch (error) {

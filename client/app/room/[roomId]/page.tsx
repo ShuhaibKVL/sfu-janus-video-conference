@@ -6,7 +6,7 @@ import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
 import VideoLayout from "@/components/VideoLayout";
 import { useSocket } from "@/hooks/useSocket";
-import { SOCKET_EVENTS } from "@/lib/constants";
+import { LS_KEYS, SOCKET_EVENTS } from "@/lib/constants";
 import { IReaction } from "@/types/socket.types";
 import { useDominantSpeaker } from "@/hooks/useDominantSpeacker";
 
@@ -27,13 +27,13 @@ export default function RoomPage() {
         searchParams.get("username") || "Guest";
 
     const selectedDevices =
-        sessionStorage.getItem("selectedDevices");
+        localStorage?.getItem(LS_KEYS.DEVICE_SETUP);
 
     const parsedDevices = selectedDevices
         ? JSON.parse(selectedDevices)
         : null;
 
-    const { emitRaiseHand, socketRef } = useSocket(roomId, username);
+    const { emitRaiseHand, socketRef, isConnected } = useSocket(roomId, username);
     const localVideoRef =
         useRef<HTMLVideoElement | null>(null);
 
@@ -70,8 +70,8 @@ export default function RoomPage() {
     const [reactions, setReactions] = useState<
         IReaction[]
     >([]);
-    const [isMuted, setIsMuted] = useState(false);
-    const [isCameraOff, setIsCameraOff] = useState(false);
+    const [isMuted, setIsMuted] = useState(parsedDevices ? !parsedDevices.micEnabled : false);
+    const [isCameraOff, setIsCameraOff] = useState(parsedDevices ? !parsedDevices.cameraEnabled : false);
     const [messages, setMessages] = useState<IChatMessage[]>([]);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -232,25 +232,37 @@ export default function RoomPage() {
     const createLocalMediaStream = async () => {
 
         try {
-
+            // ALlways get both
             const stream =
                 await navigator.mediaDevices.getUserMedia({
-                    video: parsedDevices?.cameraId
-                        ? {
-                            deviceId: {
+                    video: {
+                        deviceId: parsedDevices?.cameraId
+                            ? {
                                 exact: parsedDevices.cameraId
                             }
-                        }
-                        : true,
+                            : undefined
+                    },
 
-                    audio: parsedDevices?.micId
-                        ? {
-                            deviceId: {
+                    audio: {
+                        deviceId: parsedDevices?.micId
+                            ? {
                                 exact: parsedDevices.micId
                             }
-                        }
-                        : true,
+                            : undefined
+                    }
                 });
+
+            if (!parsedDevices?.cameraEnabled) {
+                stream.getVideoTracks().forEach(track => {
+                    track.enabled = false;
+                });
+            }
+
+            if (!parsedDevices?.micEnabled) {
+                stream.getAudioTracks().forEach(track => {
+                    track.enabled = false;
+                });
+            }
 
             setLocalStream(stream);
 
@@ -329,18 +341,17 @@ export default function RoomPage() {
                         }
 
                         if (msg.videoroom === "joined") {
-                            console.log("Successfully joined room:", msg.room);
-
-                            const publisherId = msg.id; // Janus ID
-                            publisherIdRef.current = msg.id; // ALWAYS set this 
+                            const publisherId = msg?.id; // Janus ID
+                            publisherIdRef.current = msg?.id; // ALWAYS set this 
 
                             // send to socket server
-                            socketRef.current?.emit(SOCKET_EVENTS.REGISTER_USER, {
-                                roomId,
-                                socketId: socketRef.current.id,
-                                publisherId,
-                                username,
-                            });
+                            if (socketRef.current?.connected) {
+                                socketRef.current.emit(SOCKET_EVENTS.REGISTER_USER, {
+                                    roomId,
+                                    publisherId,
+                                    username,
+                                });
+                            }
 
                             if (
                                 msg.publishers &&
@@ -382,24 +393,22 @@ export default function RoomPage() {
                                 //     },
                                 // ],
                                 tracks: [
-                                    {
-                                        type: "audio",
-                                        capture:
-                                            mediaStream.getAudioTracks()[0],
+                                    ...(mediaStream.getAudioTracks().length > 0
+                                        ? [{
+                                            type: "audio",
+                                            capture: mediaStream.getAudioTracks()[0],
+                                            recv: false,
+                                        }]
+                                        : []),
 
-                                        recv: false,
-                                    },
-
-                                    {
-                                        type: "video",
-
-                                        capture:
-                                            mediaStream.getVideoTracks()[0],
-
-                                        recv: false,
-
-                                        simulcast: true,
-                                    },
+                                    ...(mediaStream.getVideoTracks().length > 0
+                                        ? [{
+                                            type: "video",
+                                            capture: mediaStream.getVideoTracks()[0],
+                                            recv: false,
+                                            simulcast: true,
+                                        }]
+                                        : []),
                                 ],
 
                                 success: (jsep: any) => {
@@ -701,7 +710,7 @@ export default function RoomPage() {
     useEffect(() => {
         const socket = socketRef.current;
 
-        if (!socket) return;
+        if (!socket || !isConnected) return;
         // Listen for raise hand events
         socket.on(SOCKET_EVENTS.RAISE_HAND, (data) => {
             const id = String(data.publisherId)
@@ -772,7 +781,7 @@ export default function RoomPage() {
             socket.off(SOCKET_EVENTS.CAMERA_TOGGLE);
             socket.off(SOCKET_EVENTS.CHAT);
         };
-    }, []);
+    }, [socketRef, isConnected]);
 
     const stopScreenShare = () => {
         if (screenShareStream) {

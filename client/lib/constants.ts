@@ -2,8 +2,7 @@ export const JANUS_HTTP_URL =
     "http://localhost:8088/janus";
 
 export const SERVER_URL =
-    process.env.NEXT_PUBLIC_SERVER_URL ||
-    "http://localhost:5000";
+    process.env.NEXT_PUBLIC_SERVER_URL
 
 export const NEXT_HANDLER_URL = {
     API: "/api",
@@ -36,4 +35,8 @@ export const BACKEND_URLS = {
         REGISTER: `${SERVER_URL}/api/auth/register`,
         ME: `${SERVER_URL}/api/auth/me`,
     },
+}
+
+export const LS_KEYS = {
+    DEVICE_SETUP: "deviceSetup"
 }

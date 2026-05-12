@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { NEXT_HANDLER_URL } from "@/lib/constants";
+import { LS_KEYS, NEXT_HANDLER_URL } from "@/lib/constants";
 import DeviceSetupModal from "./DeviceSetupModal";
 
 export default function HomePage() {
@@ -427,7 +427,7 @@ export default function HomePage() {
                 onContinue={(deviceData) => {
 
                     localStorage.setItem(
-                        "deviceSetup",
+                        LS_KEYS.DEVICE_SETUP,
                         JSON.stringify(deviceData)
                     );
 

@@ -49,6 +49,8 @@ io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
     socket.on(SOCKET_EVENTS.REGISTER_USER, ({ roomId, publisherId, username }) => {
+        console.log("Registering user:", { roomId, publisherId, username });
+
         userMap.set(socket.id, {
             publisherId,
             username,
