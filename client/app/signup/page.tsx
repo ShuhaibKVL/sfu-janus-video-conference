@@ -123,7 +123,7 @@ export default function SignupPage() {
                 JSON.stringify(data.user)
             );
 
-            router.push("/");
+            router.push("/meet");
 
         } catch (error) {
             console.error("Signup error:", error);

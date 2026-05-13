@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/"];
 
 export function middleware(request: NextRequest) {
     const token = request.cookies.get("token")?.value;
@@ -22,7 +22,7 @@ export function middleware(request: NextRequest) {
     ) {
 
         return NextResponse.redirect(
-            new URL("/", request.url)
+            new URL("/meet", request.url)
         );
     }
     /**
@@ -45,6 +45,7 @@ export function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         "/",
+        "/meet",
         "/login",
         "/signup",
         "/room/:path*"

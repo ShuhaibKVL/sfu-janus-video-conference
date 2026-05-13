@@ -9,7 +9,8 @@ export const NEXT_HANDLER_URL = {
     CREATE_ROOM: "/create-room",
     SIGN_UP: "/api/user/register",
     LOGIN: "/api/user/login",
-    ME: "/api/user/me",
+    GET_USERS: "/api/user/get-users",
+    LOGOUT: "/api/users/logout"
 };
 
 export const MAX_VISIBLE_STREAMS = 6;
@@ -33,7 +34,7 @@ export const BACKEND_URLS = {
     AUTH: {
         LOGIN: `${SERVER_URL}/api/auth/login`,
         REGISTER: `${SERVER_URL}/api/auth/register`,
-        ME: `${SERVER_URL}/api/auth/me`,
+        USERS: `${SERVER_URL}/api/auth/users`,
     },
 }
 

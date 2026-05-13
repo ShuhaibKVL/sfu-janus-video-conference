@@ -48,7 +48,7 @@ export default function LoginPage() {
                 JSON.stringify(data.user)
             );
 
-            router.push("/");
+            router.push("/meet");
 
         } catch (error) {
 

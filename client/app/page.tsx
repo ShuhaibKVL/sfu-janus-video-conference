@@ -1,7 +1,5 @@
-"use client";
-
-import JoinRoomForm from "@/components/JoinRoomForm";
+import LandingPage from "@/components/Landing.component";
 
 export default function Home() {
-  return (<JoinRoomForm />)
+  return (<LandingPage />)
 }
