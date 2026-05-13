@@ -10,7 +10,7 @@ export const NEXT_HANDLER_URL = {
     SIGN_UP: "/api/user/register",
     LOGIN: "/api/user/login",
     GET_USERS: "/api/user/get-users",
-    LOGOUT: "/api/users/logout"
+    LOGOUT: "/api/user/logout"
 };
 
 export const MAX_VISIBLE_STREAMS = 6;
@@ -28,6 +28,8 @@ export const SOCKET_EVENTS = {
 
     USER_LIST: "user-list",
     CAMERA_TOGGLE: "camera-toggle",
+
+    REGISTER_GLOBAL_USER: 'register_global_user'
 };
 
 export const BACKEND_URLS = {

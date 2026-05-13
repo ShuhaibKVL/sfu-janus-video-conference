@@ -9,3 +9,17 @@ export const PASSWORD_REGEX =
 
 export const EMAIL_REGEX =
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Authentication
+
+export function getAuthenticatedUserId(): string | null {
+    try {
+        const user = localStorage.getItem("user");
+        if (!user) return null;
+        const userData = JSON.parse(user);
+        return userData._id || null;
+    } catch (error) {
+        console.error("Failed to get user ID:", error);
+        return null;
+    }
+}

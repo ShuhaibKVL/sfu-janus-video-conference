@@ -105,7 +105,6 @@ router.post('/login', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const users = await User.find().select(['_id', 'name', 'email'])
-        console.log("Fetched users:", users);
 
         res.status(200).json({
             success: true,

@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
-import VideoLayout from "@/components/VideoLayout";
+import VideoLayout from "@/components/VideoLayout.component";
 import { useSocket } from "@/hooks/useSocket";
 import { LS_KEYS, SOCKET_EVENTS } from "@/lib/constants";
 import { IReaction } from "@/types/socket.types";
+import { IChatMessage } from "@/types/chat.types";
 import { useDominantSpeaker } from "@/hooks/useDominantSpeacker";
+import { getAuthenticatedUserId } from "@/lib/utils";
 
 
 declare global {
@@ -26,14 +28,34 @@ export default function RoomPage() {
     const username =
         searchParams.get("username") || "Guest";
 
-    const selectedDevices =
-        localStorage?.getItem(LS_KEYS.DEVICE_SETUP);
+    // Get authenticated user ID
+    const [userId, setUserId] = useState<string | null>(null);
+    useEffect(() => {
+        const id = getAuthenticatedUserId();
+        setUserId(id);
+    }, []);
 
-    const parsedDevices = selectedDevices
-        ? JSON.parse(selectedDevices)
-        : null;
+    // Initialize device settings from localStorage with proper timing
+    const getInitialDevices = () => {
+        const data = localStorage.getItem(LS_KEYS.DEVICE_SETUP);
+        if (data) {
+            return JSON.parse(data);
+        }
+        return { cameraEnabled: true, micEnabled: true };
+    };
 
-    const { emitRaiseHand, socketRef, isConnected } = useSocket(roomId, username);
+    const initialDevices = getInitialDevices();
+
+    const [parsedDevices, setParsedDevices] = useState(initialDevices);
+    
+    useEffect(() => {
+        const data = localStorage.getItem(LS_KEYS.DEVICE_SETUP);
+        if (data) {
+            setParsedDevices(JSON.parse(data));
+        }
+    }, []);
+
+    const { emitRaiseHand, socket, isConnected } = useSocket(roomId, username);
     const localVideoRef =
         useRef<HTMLVideoElement | null>(null);
 
@@ -70,8 +92,8 @@ export default function RoomPage() {
     const [reactions, setReactions] = useState<
         IReaction[]
     >([]);
-    const [isMuted, setIsMuted] = useState(parsedDevices ? !parsedDevices.micEnabled : false);
-    const [isCameraOff, setIsCameraOff] = useState(parsedDevices ? !parsedDevices.cameraEnabled : false);
+    const [isMuted, setIsMuted] = useState(!initialDevices.micEnabled);
+    const [isCameraOff, setIsCameraOff] = useState(!initialDevices.cameraEnabled);
     const [messages, setMessages] = useState<IChatMessage[]>([]);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -345,8 +367,8 @@ export default function RoomPage() {
                             publisherIdRef.current = msg?.id; // ALWAYS set this 
 
                             // send to socket server
-                            if (socketRef.current?.connected) {
-                                socketRef.current.emit(SOCKET_EVENTS.REGISTER_USER, {
+                            if (socket?.connected) {
+                                socket.emit(SOCKET_EVENTS.REGISTER_USER, {
                                     roomId,
                                     publisherId,
                                     username,
@@ -708,7 +730,6 @@ export default function RoomPage() {
 
     // socket listners
     useEffect(() => {
-        const socket = socketRef.current;
 
         if (!socket || !isConnected) return;
         // Listen for raise hand events
@@ -781,7 +802,7 @@ export default function RoomPage() {
             socket.off(SOCKET_EVENTS.CAMERA_TOGGLE);
             socket.off(SOCKET_EVENTS.CHAT);
         };
-    }, [socketRef, isConnected]);
+    }, [socket, isConnected]);
 
     const stopScreenShare = () => {
         if (screenShareStream) {
@@ -822,7 +843,7 @@ export default function RoomPage() {
 
         emitRaiseHand({
             roomId,
-            userId: socketRef.current?.id,
+            userId: userId || socket?.id || '',
             username,
             raised: !isRaised,
         });
@@ -933,11 +954,11 @@ export default function RoomPage() {
             );
         }, 2000);
 
-        socketRef.current?.emit(SOCKET_EVENTS.REACTION, {
+        socket?.emit(SOCKET_EVENTS.REACTION, {
             roomId,
             reaction: emoji,
             userName: username,
-            userId: socketRef.current?.id,
+            userId: userId || socket?.id,
         });
     };
 
@@ -984,9 +1005,9 @@ export default function RoomPage() {
         setIsCameraOff(newState);
 
         // Notify others (VERY IMPORTANT)
-        socketRef.current?.emit(SOCKET_EVENTS.CAMERA_TOGGLE, {
+        socket?.emit(SOCKET_EVENTS.CAMERA_TOGGLE, {
             roomId,
-            userId: socketRef.current?.id,
+            userId: userId || socket?.id,
             isCameraOff: newState,
         });
     };
@@ -994,7 +1015,7 @@ export default function RoomPage() {
     const sendMessage = (message: string) => {
         if (!message.trim()) return;
 
-        socketRef.current?.emit(
+        socket?.emit(
             SOCKET_EVENTS.CHAT,
             {
                 roomId,

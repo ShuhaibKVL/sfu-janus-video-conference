@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/db";
 import authRoutes from "./routes/auth.routes";
 import { SOCKET_EVENTS } from "./utils/constants";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -23,7 +25,7 @@ app.use(express.json());
  * AUTH ROUTES
  */
 app.use("/api/auth", authRoutes);
-
+app.use(cookieParser());
 /**
  * DATABASE
  */
@@ -38,20 +40,66 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "http://localhost:3000",
+        credentials: true
     },
 });
 
+// Socket middleware
+io.use((socket, next) => {
+    try {
+        console.log('socket middlware running :')
+        const cookies = socket.handshake.headers.cookie
+
+        if (!cookies) {
+            return next(new Error("No token"))
+        }
+        console.log('cookies :', cookies)
+
+        const token = cookies
+            .split("; ")
+            .find((c) => c.startsWith("token="))
+            ?.split("=")[1];
+
+        if (!token) {
+            return next(new Error("No token"));
+        }
+
+        const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET as string
+        )
+        console.log('decode :', decoded)
+
+        socket.data.user = decoded
+
+        next()
+    } catch (error) {
+        console.log("SOCKET MIDDLEWARE ERROR :", error);
+        next(new Error('Unauthorized'))
+    }
+})
+
 // key: socket.id → value: { publisherId, username, roomId }
-const userMap = new Map();
+const meetingUsers = new Map();
+// online users map for all authenticated and logined users
+const onlineUsers = new Map()
 
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
+    const user = socket.data.user
+
+    onlineUsers.set(user.userId, {
+        socketId: socket.id,
+        username: user.username
+    })
+
+    // ------------------- Meeting Room socket event --------------------------------------
     socket.on(SOCKET_EVENTS.REGISTER_USER, ({ roomId, publisherId, username }) => {
         console.log("Registering user:", { roomId, publisherId, username });
 
-        userMap.set(socket.id, {
+        meetingUsers.set(socket.id, {
             publisherId,
             username,
             roomId,
@@ -68,7 +116,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on(SOCKET_EVENTS.RAISE_HAND, (data: { roomId: string, raised: boolean }) => {
-        const user = userMap.get(socket.id);
+        const user = meetingUsers.get(socket.id);
         if (!user) return;
 
         socket.to(data.roomId).emit(SOCKET_EVENTS.RAISE_HAND, {
@@ -79,7 +127,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on(SOCKET_EVENTS.REACTION, (data) => {
-        const user = userMap.get(socket.id);
+        const user = meetingUsers.get(socket.id);
         if (!user) return;
 
         socket.to(data.roomId).emit(SOCKET_EVENTS.REACTION, {
@@ -94,7 +142,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on(SOCKET_EVENTS.CAMERA_TOGGLE, (data) => {
-        const user = userMap.get(socket.id);
+        const user = meetingUsers.get(socket.id);
         if (!user) return;
 
         socket.to(user.roomId).emit(SOCKET_EVENTS.CAMERA_TOGGLE, {
@@ -104,7 +152,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on(SOCKET_EVENTS.CHAT, (data) => {
-        const user = userMap.get(socket.id);
+        const user = meetingUsers.get(socket.id);
 
         if (!user) return;
 
@@ -120,9 +168,16 @@ io.on("connection", (socket) => {
         )
     });
 
+    socket.on(
+        SOCKET_EVENTS.LEAVE,
+        ({ roomId }) => {
+
+            socket.leave(roomId);
+        });
+
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
-        userMap.delete(socket.id);
+        meetingUsers.delete(socket.id);
     });
 });
 

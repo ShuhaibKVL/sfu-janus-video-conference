@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LS_KEYS, NEXT_HANDLER_URL } from "@/lib/constants";
-import DeviceSetupModal from "./DeviceSetupModal";
+import { LS_KEYS, NEXT_HANDLER_URL, SOCKET_EVENTS } from "@/lib/constants";
+import DeviceSetupModal from "./DeviceSetupModal.component";
+import OnlineUsersDrawer from "./UsersDrawer.compoenent";
+import { useGlobalSocket } from "@/app/context/socket.context";
 
 export default function HomePage() {
 
     const router = useRouter();
+    const socket = useGlobalSocket()
 
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
@@ -24,6 +27,7 @@ export default function HomePage() {
 
     const [pendingAction, setPendingAction] =
         useState<"create" | "join" | null>(null);
+    const [openUsers, setOpenUsers] = useState<boolean>(false)
 
     useEffect(() => {
 
@@ -42,7 +46,6 @@ export default function HomePage() {
      * CLOSE DROPDOWN ON OUTSIDE CLICK
      */
     useEffect(() => {
-
         const handleClickOutside = (event: MouseEvent) => {
 
             if (
@@ -120,7 +123,7 @@ export default function HomePage() {
 
         try {
 
-            await fetch("/api/user/logout", {
+            await fetch(NEXT_HANDLER_URL.LOGOUT, {
                 method: "POST",
             });
 
@@ -134,9 +137,16 @@ export default function HomePage() {
         }
     };
 
+    console.log('open users :', openUsers)
+
     return (
         <main className="min-h-screen bg-black overflow-hidden">
+            {/*  Side users explor drawer*/}
+            <div onClick={() => setOpenUsers(true)} className="absolute bottom-3.5 right-1.5 w-10 h-10 rounded-l-full rounded-r-md rounded-br-full bg-gradient-to-r from-indigo-600 to-purple-700 flex items-center justify-center text-white font-bold text-sm hover:shadow cursor-pointer" title="Chat with our users">
+                Chat
+            </div>
 
+            <OnlineUsersDrawer open={openUsers} onClose={() => setOpenUsers(!openUsers)} />
             {/* BACKGROUND GLOW */}
             <div className="absolute inset-0 opacity-30 pointer-events-none">
                 <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl" />

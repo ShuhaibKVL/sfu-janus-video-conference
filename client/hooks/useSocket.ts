@@ -1,61 +1,148 @@
-import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import { SERVER_URL, SOCKET_EVENTS } from "@/lib/constants";
+import {
+    useEffect,
+    useState,
+    useRef
+} from "react";
+
+import {
+    SOCKET_EVENTS
+} from "@/lib/constants";
+import { useGlobalSocket } from "@/app/context/socket.context";
 
 export const useSocket = (
     roomId: number,
-    username: string
+    username: string,
 ) => {
-    const socketRef = useRef<Socket | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
+
+    const socket = useGlobalSocket();
+    const userIdRef = useRef<string | null>(null);
+    const [isConnected, setIsConnected] =
+        useState(false);
+
+    /*
+    =========================
+    ROOM JOIN
+    =========================
+    */
 
     useEffect(() => {
+        if (!socket) {
+            console.warn("Socket not available yet");
+            return;
+        }
 
-        const socketInstance = io(SERVER_URL);
+        const handleConnect = () => {
 
-        socketRef.current = socketInstance;
-
-        socketInstance.on("connect", () => {
-            console.log("Connected to socket server with ID:", socketInstance.id);
+            console.log(
+                "Socket connected:",
+                socket.id
+            );
 
             setIsConnected(true);
 
-            socketInstance.emit(SOCKET_EVENTS.JOIN, {
-                roomId,
-                username,
-            });
-        });
+            /*
+            JOIN MEETING ROOM
+            */
 
-        socketInstance.on("disconnect", () => {
-            console.log("Socket disconnected");
-            setIsConnected(false);
-        });
-
-        return () => {
-            socketInstance.disconnect();
+            socket.emit(
+                SOCKET_EVENTS.JOIN,
+                {
+                    roomId,
+                    username,
+                }
+            );
         };
 
-    }, [roomId, username]);
+        const handleDisconnect = () => {
 
-    const emitRaiseHand = (data: {
-        roomId: number;
-        userId: string;
-        username: string;
-        raised: boolean;
-    }) => {
-        if (!socketRef.current?.connected) {
-            console.log("Socket not connected");
+            setIsConnected(false);
+
+            console.log("Socket disconnected");
+        };
+
+        /*
+        listeners
+        */
+
+        socket.on(
+            "connect",
+            handleConnect
+        );
+
+        socket.on(
+            "disconnect",
+            handleDisconnect
+        );
+
+        /*
+        already connected case
+        */
+
+        if (socket.connected) {
+            handleConnect();
+        }
+
+        return () => {
+
+            socket.off(
+                "connect",
+                handleConnect
+            );
+
+            socket.off(
+                "disconnect",
+                handleDisconnect
+            );
+
+            /*
+            IMPORTANT:
+            leave ONLY room
+            NOT socket disconnect
+            */
+
+            socket.emit(
+                SOCKET_EVENTS.LEAVE,
+                {
+                    roomId,
+                }
+            );
+        };
+
+    }, [
+        socket,
+        roomId,
+        username
+    ]);
+
+    /*
+    =========================
+    ACTIONS
+    =========================
+    */
+
+    const emitRaiseHand = (
+        data: {
+            roomId: number;
+            userId: string;
+            username: string;
+            raised: boolean;
+        }
+    ) => {
+
+        if (!socket?.connected) {
+            console.warn("Socket not connected");
             return;
         }
-        socketRef.current?.emit(
+
+        socket.emit(
             SOCKET_EVENTS.RAISE_HAND,
             data
         );
     };
 
     return {
-        socketRef,
+        socket,
         emitRaiseHand,
-        isConnected,
+        isConnected
     };
 };

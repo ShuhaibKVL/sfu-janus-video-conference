@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import RemoteVideo from "./RemoteVideo";
+import RemoteVideo from "./RemoteVideo.component";
 import { MAX_VISIBLE_STREAMS } from "@/lib/constants";
-import MeetingControls from "./MeetingControls";
+import MeetingControls from "./MeetingControls.component";
 import { IReaction } from "@/types/socket.types";
 import { IChatMessage } from "@/types/chat.types";
-import ChatPanel from "./ChatPanel";
+import ChatPanel from "./ChatPanel.component";
 
 interface RemoteStreamItem {
     id: string;

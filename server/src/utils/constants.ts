@@ -11,4 +11,6 @@ export const SOCKET_EVENTS = {
 
     USER_LIST: "user-list",
     CAMERA_TOGGLE: "camera-toggle",
+
+    REGISTER_GLOBAL_USER: 'register_global_user'
 };
