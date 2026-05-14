@@ -1,7 +1,6 @@
 import {
     useEffect,
     useState,
-    useRef
 } from "react";
 
 import {
@@ -15,7 +14,6 @@ export const useSocket = (
 ) => {
 
     const socket = useGlobalSocket();
-    const userIdRef = useRef<string | null>(null);
     const [isConnected, setIsConnected] =
         useState(false);
 

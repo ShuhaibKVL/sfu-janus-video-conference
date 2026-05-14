@@ -2,12 +2,18 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import cors from "cors";
 
 import { connectDB } from "./config/db";
 import authRoutes from "./routes/auth.routes";
+import chatRoutes from "./routes/chat.routes";
+import userRoutes from "./routes/user.routes"
 import { SOCKET_EVENTS } from "./utils/constants";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
+import Conversation from "./models/Conversation.model";
+import Message from "./models/Message.model";
+import { authMiddleware } from "./utils/authMiddleware";
 
 dotenv.config();
 
@@ -16,16 +22,25 @@ dotenv.config();
  */
 const app = express();
 
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}));
+
 /**
  * MIDDLEWARE
  */
 
 app.use(express.json());
+app.use(cookieParser());
+
 /**
  * AUTH ROUTES
  */
 app.use("/api/auth", authRoutes);
-app.use(cookieParser());
+app.use("/api/users", authMiddleware, userRoutes);
+app.use("/api/chat", authMiddleware, chatRoutes);
+
 /**
  * DATABASE
  */
@@ -94,6 +109,10 @@ io.on("connection", (socket) => {
         socketId: socket.id,
         username: user.username
     })
+
+    // Join personal room for direct messaging
+    socket.join(user.userId);
+    console.log(`User ${user.userId} joined their personal room`);
 
     // ------------------- Meeting Room socket event --------------------------------------
     socket.on(SOCKET_EVENTS.REGISTER_USER, ({ roomId, publisherId, username }) => {
@@ -174,6 +193,125 @@ io.on("connection", (socket) => {
 
             socket.leave(roomId);
         });
+
+    // ---------------- Private messages socket events -----------------------------
+
+    socket.on(SOCKET_EVENTS.PRIVATE_MESSAGE, async (data) => {
+        try {
+            const sender = socket.data.user
+            console.log('private message sender :', sender)
+            console.log('data :', data)
+
+            const { text, receiverId } = data
+
+            /*
+            FIND EXISTING CONVERSATION
+            */
+
+            let conversation = await Conversation.findOne({
+                participants: {
+                    $all: [
+                        sender.userId,
+                        receiverId
+                    ]
+                }
+            })
+
+            /*
+            CREATE IF NOT EXISTS
+            */
+
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    participants: [
+                        sender.userId,
+                        receiverId
+                    ]
+                })
+            }
+
+            /*
+            SAVE MESSAGE
+            */
+
+            const message = await Message.create({
+                conversationId: conversation._id,
+                senderId: sender.userId,
+                text
+            })
+
+            /*
+            UPDATE CONVERSATION'S LAST MESSAGE
+            */
+
+            await Conversation.updateOne(
+                { _id: conversation._id },
+                { lastMessage: message._id }
+            )
+
+            /*
+            EMIT TO RECEIVER
+            */
+            console.log('emit to receiverId :', receiverId)
+            io.to(receiverId).emit(
+                SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED,
+                {
+                    _id: message._id,
+
+                    conversationId:
+                        conversation._id,
+
+                    senderId:
+                        sender.userId,
+
+                    receiverId,
+
+                    senderName:
+                        sender.username,
+
+                    text,
+
+                    createdAt:
+                        message.createdAt
+                }
+            );
+
+            /*
+            OPTIONAL:
+            ALSO SEND BACK TO SENDER
+            */
+
+            // socket.emit(
+            //     SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED,
+            //     {
+            //         _id: message._id,
+
+            //         conversationId:
+            //             conversation._id,
+
+            //         senderId:
+            //             sender.userId,
+
+            //         receiverId,
+
+            //         senderName:
+            //             sender.username,
+
+            //         text,
+
+            //         createdAt:
+            //             message.createdAt
+            //     }
+            // );
+        } catch (error: any) {
+            console.error("Error sending private message:", error);
+            socket.emit("error", {
+                message: "Failed to send message",
+                error: error?.message
+            });
+        }
+
+    })
 
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);

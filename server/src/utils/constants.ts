@@ -12,5 +12,8 @@ export const SOCKET_EVENTS = {
     USER_LIST: "user-list",
     CAMERA_TOGGLE: "camera-toggle",
 
-    REGISTER_GLOBAL_USER: 'register_global_user'
+    PRIVATE_MESSAGE: 'private-message',
+    PRIVATE_MESSAGE_RECEIVED: "private-message-received",
+    GET_CONVERSATION_MESSAGES: "get-conversation-messages",
+    CONVERSATION_MESSAGES: "conversation-messages",
 };

@@ -10,7 +10,8 @@ export const NEXT_HANDLER_URL = {
     SIGN_UP: "/api/user/register",
     LOGIN: "/api/user/login",
     GET_USERS: "/api/user/get-users",
-    LOGOUT: "/api/user/logout"
+    LOGOUT: "/api/user/logout",
+    GET_CONVERSATION: "/api/chat/get-conversation"
 };
 
 export const MAX_VISIBLE_STREAMS = 6;
@@ -29,15 +30,21 @@ export const SOCKET_EVENTS = {
     USER_LIST: "user-list",
     CAMERA_TOGGLE: "camera-toggle",
 
-    REGISTER_GLOBAL_USER: 'register_global_user'
+    PRIVATE_MESSAGE: 'private-message',
+    PRIVATE_MESSAGE_RECEIVED: "private-message-received",
+    GET_CONVERSATION_MESSAGES: "get-conversation-messages",
+    CONVERSATION_MESSAGES: "conversation-messages",
 };
 
 export const BACKEND_URLS = {
     AUTH: {
         LOGIN: `${SERVER_URL}/api/auth/login`,
         REGISTER: `${SERVER_URL}/api/auth/register`,
-        USERS: `${SERVER_URL}/api/auth/users`,
+        USERS: `${SERVER_URL}/api/users/users`,
     },
+    CHAT: {
+        GET_CONVERSATION: (userId: string) => `${SERVER_URL}/api/chat/conversation/${userId}`
+    }
 }
 
 export const LS_KEYS = {

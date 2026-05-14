@@ -98,23 +98,4 @@ router.post('/login', async (req, res) => {
     }
 })
 
-/** 
- * Get User Info
- */
-
-router.get('/users', async (req, res) => {
-    try {
-        const users = await User.find().select(['_id', 'name', 'email'])
-
-        res.status(200).json({
-            success: true,
-            count: users?.length,
-            users
-        });
-    } catch (error: any) {
-        console.log("Error fetching users:", error);
-        res.status(500).json({ success: false, message: error?.message })
-    }
-})
-
 export default router;

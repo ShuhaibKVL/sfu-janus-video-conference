@@ -1,9 +1,10 @@
 "use client";
 
 import { NEXT_HANDLER_URL } from "@/lib/constants";
-import { IUser } from "@/types/chat.types";
-import Image from "next/image";
+import { IPrivateMessage, IUser } from "@/types/chat.types";
 import { useEffect, useState } from "react";
+import { useGlobalSocket } from "@/app/context/socket.context";
+import { SOCKET_EVENTS } from "@/lib/constants";
 
 export default function OnlineUsersDrawer({
     open,
@@ -12,17 +13,26 @@ export default function OnlineUsersDrawer({
     open: boolean;
     onClose: () => void;
 }) {
-
+    const socket = useGlobalSocket();
     const [users, setUsers] = useState<IUser[] | null>(null)
+    const [selectedUser, setSelectedUser] =
+        useState<IUser | null>(null);
+
+    const [messages, setMessages] =
+        useState<IPrivateMessage[]>([]);
+
+    const [messageText, setMessageText] =
+        useState("");
 
     const fetchUsers = async () => {
         try {
+            console.log('fetch users')
             const res = await fetch(NEXT_HANDLER_URL.GET_USERS, {
                 method: "GET"
             })
 
             const usersList = await res.json();
-            console.log('users :', usersList)
+            console.log('users response :', usersList)
 
             if (res?.ok && usersList?.users) {
                 setUsers(usersList?.users)
@@ -33,15 +43,97 @@ export default function OnlineUsersDrawer({
     }
 
     useEffect(() => {
-        fetchUsers()
-    }, [])
+        if (open) {
+            fetchUsers()
+        }
+    }, [open])
+
+
+    // Sockert listners
+    useEffect(() => {
+        console.log("socket :", socket)
+        if (!socket) return
+
+        socket.on(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED,
+            (message) => {
+                console.log('message recived :', message)
+                setMessages((prev) => [
+                    ...prev,
+                    message
+                ])
+            }
+        )
+
+        return () => {
+            socket.off(
+                SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED
+            )
+        }
+    }, [socket])
+
+    // Load messages when user selects a conversation
+    useEffect(() => {
+        if (!selectedUser) {
+            setMessages([]);
+            return;
+        }
+
+        const loadMessages = async () => {
+            try {
+                const res = await fetch(
+                    `${NEXT_HANDLER_URL.GET_CONVERSATION}?userId=${selectedUser._id}`,
+                    { method: 'GET' }
+                );
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setMessages(data.data || []);
+                } else {
+                    console.error('Failed to load messages');
+                    setMessages([]);
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                setMessages([]);
+            }
+        };
+
+        loadMessages();
+    }, [selectedUser]);
+
+    // Send message 
+    const sendMessage = () => {
+        if (!socket ||
+            !selectedUser ||
+            !messageText?.trim()
+        ) return
+
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}")
+
+        const payload = {
+            receiverId: selectedUser?._id,
+            text: messageText
+        }
+
+        socket.emit(SOCKET_EVENTS.PRIVATE_MESSAGE, payload)
+
+        setMessages((prev) => [
+            ...prev,
+            {
+                senderId: currentUser._id,
+                text: messageText,
+                createdAt: new Date().toISOString()
+            }
+        ])
+
+        setMessageText("")
+    }
 
     if (!open) {
         return null;
     }
 
     return (
-
         <div className="
             fixed
             inset-0
@@ -125,90 +217,229 @@ export default function OnlineUsersDrawer({
                 </div>
 
                 {/* TABLE */}
-                <div className="
-                    flex-1
-                    overflow-y-auto
-                    p-6
-                ">
+                <div className="flex flex-1 overflow-hidden">
 
+                    {/* LEFT SIDEBAR */}
                     <div className="
-                        rounded-3xl
-                        border
-                        border-white/10
-                        overflow-hidden
-                    ">
+        w-[320px]
+        border-r
+        border-white/10
+        overflow-y-auto
+    ">
 
                         {
-                            users && users?.length > 0 ?
-                                users.map((user) => (
+                            users?.map((user) => (
 
-                                    <div
-                                        key={user._id}
-                                        className="
-                                        h-[82px]
-                                        px-6
-                                        border-b
-                                        border-white/10
-                                        flex
-                                        items-center
-                                        justify-between
-                                        hover:bg-white/[0.02]
-                                        transition-all
-                                    "
-                                    >
+                                <div
+                                    key={user._id}
+                                    onClick={() => setSelectedUser(user)}
+                                    className={`
+                        px-5
+                        py-4
+                        border-b
+                        border-white/5
+                        cursor-pointer
+                        transition-all
 
-                                        {/* LEFT */}
+                        ${selectedUser?._id === user._id
+                                            ? "bg-white/10"
+                                            : "hover:bg-white/[0.03]"
+                                        }
+                    `}
+                                >
+
+                                    <div className="flex items-center gap-3">
+
                                         <div className="
-                                        flex
-                                        items-center
-                                        gap-4
-                                    ">
-
-                                            <div className="rounded-full border border-gray-400 h-7 w-7 flex items-center justify-center text-sm font-medium">
-                                                {user?.name ? user.name[0] : "--"}
-                                            </div>
-
-                                            <div>
-
-                                                <h3 className="
-                                                text-white
-                                                font-semibold
-                                                text-lg
-                                            ">
-                                                    {user.name}
-                                                </h3>
-
-                                                <p className="
-                                                text-sm
-                                                text-gray-400
-                                            ">
-                                                    {user?.email}
-                                                </p>
-
-                                            </div>
-
+                            w-11
+                            h-11
+                            rounded-full
+                            bg-indigo-600
+                            flex
+                            items-center
+                            justify-center
+                            text-white
+                            font-bold
+                        ">
+                                            {user.name[0]}
                                         </div>
 
-                                        {/* RIGHT */}
-                                        <button
+                                        <div>
+                                            <h3 className="text-white font-medium">
+                                                {user.name}
+                                            </h3>
+
+                                            <p className="text-sm text-gray-400">
+                                                {user.email}
+                                            </p>
+                                        </div>
+
+                                    </div>
+
+                                </div>
+                            ))
+                        }
+
+                    </div>
+
+                    {/* RIGHT CHAT AREA */}
+                    <div className="flex-1 flex flex-col">
+
+                        {
+                            !selectedUser ? (
+
+                                <div className="
+                    flex-1
+                    flex
+                    items-center
+                    justify-center
+                    text-gray-500
+                ">
+                                    Select a user to start chatting
+                                </div>
+
+                            ) : (
+
+                                <>
+                                    {/* HEADER */}
+                                    <div className="
+                        h-[80px]
+                        border-b
+                        border-white/10
+                        px-6
+                        flex
+                        items-center
+                    ">
+
+                                        <div className="
+                            w-11
+                            h-11
+                            rounded-full
+                            bg-indigo-600
+                            flex
+                            items-center
+                            justify-center
+                            text-white
+                            font-bold
+                        ">
+                                            {selectedUser.name[0]}
+                                        </div>
+
+                                        <div className="ml-4">
+                                            <h2 className="text-white font-semibold">
+                                                {selectedUser.name}
+                                            </h2>
+
+                                            <p className="text-sm text-gray-400">
+                                                Online
+                                            </p>
+                                        </div>
+
+                                    </div>
+
+                                    {/* MESSAGES */}
+                                    <div className="
+                        flex-1
+                        overflow-y-auto
+                        p-6
+                        space-y-4
+                    ">
+
+                                        {messages && messages?.length > 0 ?
+                                            messages?.map((msg, index) => {
+
+                                                const currentUser =
+                                                    JSON.parse(
+                                                        localStorage.getItem("user") || "{}"
+                                                    );
+
+                                                const isMine =
+                                                    msg.senderId === currentUser._id;
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`
+                                                                flex
+                                                                 ${isMine ? "justify-end" : "justify-start"}
+                                                                `}
+                                                    >
+
+                                                        <div className={`
+                                                                max-w-[70%]
+                                                                px-4
+                                                                py-3
+                                                                rounded-2xl
+                                                                text-sm
+
+                                                                ${isMine
+                                                                ? "bg-indigo-600 text-white"
+                                                                : "bg-neutral-800 text-white"
+                                                            }
+                                                        `}>
+                                                            {msg.text}
+                                                        </div>
+
+                                                    </div>
+                                                );
+                                            })
+                                            : <p className="text-center text-sm text-gray-500">Start your chat</p>}
+
+                                    </div>
+
+                                    {/* INPUT */}
+                                    <div className="
+                        h-[90px]
+                        border-t
+                        border-white/10
+                        px-5
+                        flex
+                        items-center
+                        gap-4
+                    ">
+
+                                        <input
+                                            value={messageText}
+                                            onChange={(e) =>
+                                                setMessageText(e.target.value)
+                                            }
+                                            onKeyDown={(e) => {
+                                                console.log('on enter :', e.key)
+                                                if (e.key === "Enter") {
+                                                    sendMessage()
+                                                }
+                                            }}
+                                            placeholder="Type message..."
                                             className="
-                                            h-[46px]
-                                            px-6
-                                            rounded-2xl
-                                            bg-gradient-to-r
-                                            from-indigo-600
-                                            to-purple-700
-                                            text-white
-                                            font-semibold
-                                            hover:scale-[1.02]
-                                            transition-all
-                                        "
+                                flex-1
+                                h-[50px]
+                                rounded-2xl
+                                bg-neutral-900
+                                border
+                                border-white/10
+                                px-5
+                                text-white
+                                outline-none
+                            "
+                                        />
+
+                                        <button
+                                            onClick={sendMessage}
+                                            className="
+                                h-[50px]
+                                px-6
+                                rounded-2xl
+                                bg-indigo-600
+                                text-white
+                                font-semibold
+                            "
                                         >
-                                            Connect
+                                            Send
                                         </button>
 
                                     </div>
-                                )) : <h1>Not have users on online right now</h1>
+                                </>
+                            )
                         }
 
                     </div>

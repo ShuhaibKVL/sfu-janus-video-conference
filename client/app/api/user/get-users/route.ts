@@ -1,21 +1,36 @@
 import { BACKEND_URLS } from "@/lib/constants";
+import { getToken } from "@/lib/getToken";
+
 
 export async function GET() {
     try {
+
+        /*
+        GET COOKIE FROM NEXT REQUEST
+        */
+        const token = await getToken()
+
+        if (!token) {
+            throw new Error('Token not found')
+        }
+
+        /*
+        FORWARD COOKIE TO BACKEND
+        */
         const users = await fetch(`${BACKEND_URLS.AUTH.USERS}`, {
             method: "GET",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                cookie: `token=${token?.value}`
             },
         })
 
-        console.log('Fetched users:', users);
-
+        const data = await users.json();
+        console.log('Users data:', data);
         if (!users.ok) {
             throw new Error("Failed to fetch users");
         }
-        const data = await users.json();
-        console.log('Users data:', data);
+
         return new Response(JSON.stringify(data), {
             status: 200,
             headers: {

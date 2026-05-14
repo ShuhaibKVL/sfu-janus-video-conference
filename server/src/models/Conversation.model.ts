@@ -5,9 +5,10 @@ const conversationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    lastReadMessage: {
-        type: String,
-        required: true
+    lastMessage: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Messages',
+        required: false
     }
 }, { timestamps: true })
 

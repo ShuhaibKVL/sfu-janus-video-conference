@@ -1,3 +1,5 @@
+import { RequestCookie } from "next/dist/compiled/@edge-runtime/cookies";
+
 export function generateTransaction() {
     return Math.random().toString(36).substring(2, 15);
 }
