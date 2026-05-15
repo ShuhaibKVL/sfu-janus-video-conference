@@ -2,157 +2,212 @@
 
 import { NEXT_HANDLER_URL } from "@/lib/constants";
 import { IPrivateMessage, IUser } from "@/types/chat.types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGlobalSocket } from "@/app/context/socket.context";
 import { SOCKET_EVENTS } from "@/lib/constants";
 
 export default function OnlineUsersDrawer({
-    open,
-    onClose
+  open,
+  onClose,
 }: {
-    open: boolean;
-    onClose: () => void;
+  open: boolean;
+  onClose: () => void;
 }) {
-    const socket = useGlobalSocket();
-    const [users, setUsers] = useState<IUser[] | null>(null)
-    const [selectedUser, setSelectedUser] =
-        useState<IUser | null>(null);
+  const socket = useGlobalSocket();
+  const [users, setUsers] = useState<IUser[] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
 
-    const [messages, setMessages] =
-        useState<IPrivateMessage[]>([]);
+  const [messages, setMessages] = useState<IPrivateMessage[]>([]);
 
-    const [messageText, setMessageText] =
-        useState("");
+  const [messageText, setMessageText] = useState("");
 
-    const fetchUsers = async () => {
-        try {
-            console.log('fetch users')
-            const res = await fetch(NEXT_HANDLER_URL.GET_USERS, {
-                method: "GET"
-            })
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
-            const usersList = await res.json();
-            console.log('users response :', usersList)
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
-            if (res?.ok && usersList?.users) {
-                setUsers(usersList?.users)
-            }
-        } catch (error: any) {
-            console.log('error on fetching users :', error.message)
-        }
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const [showNewMessageButton, setShowNewMessageButton] = useState(false);
+
+  const isUserNearBottomRef = useRef(true);
+
+  const fetchUsers = async () => {
+    try {
+      console.log("fetch users");
+      const res = await fetch(NEXT_HANDLER_URL.GET_USERS, {
+        method: "GET",
+      });
+
+      const usersList = await res.json();
+      console.log("users response :", usersList);
+
+      if (res?.ok && usersList?.users) {
+        setUsers(usersList?.users);
+      }
+    } catch (error: any) {
+      console.log("error on fetching users :", error.message);
+    }
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
+    const container = messagesContainerRef.current;
+
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior,
+    });
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchUsers();
+    }
+  }, [open]);
+
+  // Sockert listners
+  useEffect(() => {
+    console.log("socket :", socket);
+    if (!socket) return;
+
+    socket.on(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED, (message) => {
+      console.log("message recived :", message);
+      setMessages((prev) => [...prev, message]);
+
+      // if already near bottom
+      // auto scroll
+      if (isUserNearBottomRef.current) {
+        requestAnimationFrame(() => {
+          scrollToBottom("auto");
+        });
+      } else {
+        // user reading old messages
+        setShowNewMessageButton(true);
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.ONLINE_USERS, (users) => {
+      console.log("online users listner :", users);
+      setOnlineUserIds(users);
+    });
+
+    return () => {
+      socket.off(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED);
+      socket.off(SOCKET_EVENTS.ONLINE_USERS);
+    };
+  }, [socket]);
+
+  // Load messages when user selects a conversation
+  useEffect(() => {
+    if (!selectedUser) {
+      setMessages([]);
+      return;
     }
 
-    useEffect(() => {
-        if (open) {
-            fetchUsers()
+    const loadMessages = async () => {
+      try {
+        const res = await fetch(
+          `${NEXT_HANDLER_URL.GET_CONVERSATION}?userId=${selectedUser._id}`,
+          { method: "GET" },
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data.data || []);
+
+          // scroll only when opening conversation
+          requestAnimationFrame(() => {
+            scrollToBottom("auto");
+          });
+        } else {
+          console.error("Failed to load messages");
+          setMessages([]);
         }
-    }, [open])
+      } catch (error) {
+        console.error("Error loading messages:", error);
+        setMessages([]);
+      }
+    };
 
+    loadMessages();
+  }, [selectedUser]);
 
-    // Sockert listners
-    useEffect(() => {
-        console.log("socket :", socket)
-        if (!socket) return
+  // Detect user scroll position
+  useEffect(() => {
+    const container = messagesContainerRef.current;
 
-        socket.on(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED,
-            (message) => {
-                console.log('message recived :', message)
-                setMessages((prev) => [
-                    ...prev,
-                    message
-                ])
-            }
-        )
+    if (!container) return;
 
-        return () => {
-            socket.off(
-                SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED
-            )
-        }
-    }, [socket])
+    const handleScroll = () => {
+      const threshold = 60;
 
-    // Load messages when user selects a conversation
-    useEffect(() => {
-        if (!selectedUser) {
-            setMessages([]);
-            return;
-        }
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
 
-        const loadMessages = async () => {
-            try {
-                const res = await fetch(
-                    `${NEXT_HANDLER_URL.GET_CONVERSATION}?userId=${selectedUser._id}`,
-                    { method: 'GET' }
-                );
+      const isNearBottom = distanceFromBottom < threshold;
 
-                if (res.ok) {
-                    const data = await res.json();
-                    setMessages(data.data || []);
-                } else {
-                    console.error('Failed to load messages');
-                    setMessages([]);
-                }
-            } catch (error) {
-                console.error('Error loading messages:', error);
-                setMessages([]);
-            }
-        };
+      isUserNearBottomRef.current = isNearBottom;
 
-        loadMessages();
-    }, [selectedUser]);
+      if (isNearBottom) {
+        setShowNewMessageButton(false);
+      }
+    };
 
-    // Send message 
-    const sendMessage = () => {
-        if (!socket ||
-            !selectedUser ||
-            !messageText?.trim()
-        ) return
+    // IMPORTANT
+    handleScroll();
 
-        const currentUser = JSON.parse(localStorage.getItem("user") || "{}")
+    container.addEventListener("scroll", handleScroll);
 
-        const payload = {
-            receiverId: selectedUser?._id,
-            text: messageText
-        }
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [messages]);
 
-        socket.emit(SOCKET_EVENTS.PRIVATE_MESSAGE, payload)
+  // Send message
+  const sendMessage = () => {
+    if (!socket || !selectedUser || !messageText?.trim()) return;
 
-        setMessages((prev) => [
-            ...prev,
-            {
-                senderId: currentUser._id,
-                text: messageText,
-                createdAt: new Date().toISOString()
-            }
-        ])
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-        setMessageText("")
-    }
+    const payload = {
+      receiverId: selectedUser?._id,
+      text: messageText,
+    };
 
-    if (!open) {
-        return null;
-    }
+    socket.emit(SOCKET_EVENTS.PRIVATE_MESSAGE, payload);
 
-    return (
-        <div className="
-            fixed
-            inset-0
-            z-[999]
-            flex
-            items-center
-            justify-center
-            bg-black/70
-            backdrop-blur-sm
-        ">
+    setMessages((prev) => [
+      ...prev,
+      {
+        senderId: currentUser.id,
+        text: messageText,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
 
-            {/* BACKDROP */}
-            <div
-                onClick={onClose}
-                className="absolute inset-0"
-            />
+    setMessageText("");
 
-            {/* DRAWER */}
-            <div className="
+    requestAnimationFrame(() => {
+      scrollToBottom("smooth");
+    });
+  };
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm
+        "
+    >
+      {/* BACKDROP */}
+      <div onClick={onClose} className="absolute inset-0" />
+
+      {/* DRAWER */}
+      <div
+        className="
                 relative
                 w-[70vw]
                 max-w-5xl
@@ -164,10 +219,11 @@ export default function OnlineUsersDrawer({
                 overflow-hidden
                 flex
                 flex-col
-            ">
-
-                {/* HEADER */}
-                <div className="
+            "
+      >
+        {/* HEADER */}
+        <div
+          className="
                     h-[80px]
                     border-b
                     border-white/10
@@ -176,31 +232,33 @@ export default function OnlineUsersDrawer({
                     items-center
                     justify-between
                     shrink-0
-                ">
-
-                    <div>
-
-                        <h2 className="
+                "
+        >
+          <div>
+            <h2
+              className="
                             text-2xl
                             font-bold
                             text-white
-                        ">
-                            Online Users
-                        </h2>
+                        "
+            >
+              Registerd Users
+            </h2>
 
-                        <p className="
+            <p
+              className="
                             text-sm
                             text-neutral-400
                             mt-1
-                        ">
-                            Currently active users
-                        </p>
+                        "
+            >
+              Currently active users
+            </p>
+          </div>
 
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="
+          <button
+            onClick={onClose}
+            className="
                             w-11
                             h-11
                             rounded-xl
@@ -210,30 +268,29 @@ export default function OnlineUsersDrawer({
                             hover:bg-white/5
                             transition-all
                         "
-                    >
-                        ✕
-                    </button>
+          >
+            ✕
+          </button>
+        </div>
 
-                </div>
-
-                {/* TABLE */}
-                <div className="flex flex-1 overflow-hidden">
-
-                    {/* LEFT SIDEBAR */}
-                    <div className="
+        {/* TABLE */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* LEFT SIDEBAR */}
+          <div
+            className="
         w-[320px]
         border-r
         border-white/10
         overflow-y-auto
-    ">
-
-                        {
-                            users?.map((user) => (
-
-                                <div
-                                    key={user._id}
-                                    onClick={() => setSelectedUser(user)}
-                                    className={`
+    "
+          >
+            {users?.map((user) => {
+              const isOnline = onlineUserIds.includes(user._id);
+              return (
+                <div
+                  key={user._id}
+                  onClick={() => setSelectedUser(user)}
+                  className={`
                         px-5
                         py-4
                         border-b
@@ -241,77 +298,74 @@ export default function OnlineUsersDrawer({
                         cursor-pointer
                         transition-all
 
-                        ${selectedUser?._id === user._id
-                                            ? "bg-white/10"
-                                            : "hover:bg-white/[0.03]"
-                                        }
+                        ${
+                          selectedUser?._id === user._id
+                            ? "bg-white/10"
+                            : "hover:bg-white/[0.03]"
+                        }
                     `}
-                                >
-
-                                    <div className="flex items-center gap-3">
-
-                                        <div className="
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`
                             w-11
                             h-11
                             rounded-full
-                            bg-indigo-600
                             flex
                             items-center
                             justify-center
                             text-white
                             font-bold
-                        ">
-                                            {user.name[0]}
-                                        </div>
-
-                                        <div>
-                                            <h3 className="text-white font-medium">
-                                                {user.name}
-                                            </h3>
-
-                                            <p className="text-sm text-gray-400">
-                                                {user.email}
-                                            </p>
-                                        </div>
-
-                                    </div>
-
-                                </div>
-                            ))
-                        }
-
+                            ${isOnline ? "border-2 border-green-400" : "bg-indigo-600"}
+                        `}
+                    >
+                      {user.name[0]}
                     </div>
 
-                    {/* RIGHT CHAT AREA */}
-                    <div className="flex-1 flex flex-col">
+                    <div>
+                      <h3 className="text-white font-medium">{user.name}</h3>
 
-                        {
-                            !selectedUser ? (
+                      <p
+                        className={`text-sm ${isOnline ? "text-green-400" : "text-gray-400"}`}
+                      >
+                        {isOnline ? "Online" : user.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-                                <div className="
+          {/* RIGHT CHAT AREA */}
+          <div className="flex-1 flex flex-col">
+            {!selectedUser ? (
+              <div
+                className="
                     flex-1
                     flex
                     items-center
                     justify-center
                     text-gray-500
-                ">
-                                    Select a user to start chatting
-                                </div>
-
-                            ) : (
-
-                                <>
-                                    {/* HEADER */}
-                                    <div className="
+                "
+              >
+                Select a user to start chatting
+              </div>
+            ) : (
+              <>
+                {/* HEADER */}
+                <div
+                  className="
                         h-[80px]
                         border-b
                         border-white/10
                         px-6
                         flex
                         items-center
-                    ">
-
-                                        <div className="
+                    "
+                >
+                  <div
+                    className="
                             w-11
                             h-11
                             rounded-full
@@ -321,74 +375,111 @@ export default function OnlineUsersDrawer({
                             justify-center
                             text-white
                             font-bold
-                        ">
-                                            {selectedUser.name[0]}
-                                        </div>
+                        "
+                  >
+                    {selectedUser.name[0]}
+                  </div>
 
-                                        <div className="ml-4">
-                                            <h2 className="text-white font-semibold">
-                                                {selectedUser.name}
-                                            </h2>
+                  <div className="ml-4">
+                    <h2 className="text-white font-semibold">
+                      {selectedUser.name}
+                    </h2>
 
-                                            <p className="text-sm text-gray-400">
-                                                Online
-                                            </p>
-                                        </div>
+                    <p className="text-sm text-gray-400">Online</p>
+                  </div>
+                </div>
 
-                                    </div>
-
-                                    {/* MESSAGES */}
-                                    <div className="
+                {/* MESSAGES */}
+                <div
+                  ref={messagesContainerRef}
+                  className="
                         flex-1
                         overflow-y-auto
                         p-6
                         space-y-4
-                    ">
+                    "
+                >
+                  {messages && messages?.length > 0 ? (
+                    messages?.map((msg, index) => {
+                      console.log("msg :", msg);
+                      const currentUser = JSON.parse(
+                        localStorage.getItem("user") || "{}",
+                      );
+                      console.log("CURRENT USER :", currentUser);
 
-                                        {messages && messages?.length > 0 ?
-                                            messages?.map((msg, index) => {
+                      const senderId = msg?.senderId;
+                      const isMine = senderId === currentUser.id;
+                      console.log(
+                        "current user id:",
+                        currentUser.id,
+                        "sender id ",
+                        senderId,
+                        "is mine :",
+                        isMine,
+                      );
 
-                                                const currentUser =
-                                                    JSON.parse(
-                                                        localStorage.getItem("user") || "{}"
-                                                    );
-
-                                                const isMine =
-                                                    msg.senderId === currentUser._id;
-
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className={`
+                      return (
+                        <div
+                          key={msg._id || index}
+                          className={`
                                                                 flex
                                                                  ${isMine ? "justify-end" : "justify-start"}
                                                                 `}
-                                                    >
-
-                                                        <div className={`
+                        >
+                          <div
+                            className={`
                                                                 max-w-[70%]
                                                                 px-4
                                                                 py-3
                                                                 rounded-2xl
                                                                 text-sm
 
-                                                                ${isMine
-                                                                ? "bg-indigo-600 text-white"
-                                                                : "bg-neutral-800 text-white"
-                                                            }
-                                                        `}>
-                                                            {msg.text}
-                                                        </div>
+                                                                ${
+                                                                  isMine
+                                                                    ? "bg-indigo-600 text-white"
+                                                                    : "bg-neutral-800 text-white"
+                                                                }
+                                                        `}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-center text-sm text-gray-500">
+                      Start your chat
+                    </p>
+                  )}
+                  {/* Detect the bottom of messge container to controll the auto scroll */}
+                  <div ref={bottomRef} />
+                </div>
 
-                                                    </div>
-                                                );
-                                            })
-                                            : <p className="text-center text-sm text-gray-500">Start your chat</p>}
-
-                                    </div>
-
-                                    {/* INPUT */}
-                                    <div className="
+                {showNewMessageButton && (
+                  <div className=" absolute bottom-[110px] right-2.5 z-50">
+                    <button
+                      onClick={() => {
+                        scrollToBottom();
+                        setShowNewMessageButton(false);
+                      }}
+                      className="
+                    px-4
+                    py-2
+                    rounded-full
+                    border border-gray-300
+                    bg-black
+                    text-white
+                    shadow-lg
+                    text-sm
+                "
+                    >
+                      New Messages ↓
+                    </button>
+                  </div>
+                )}
+                {/* INPUT */}
+                <div
+                  className="
                         h-[90px]
                         border-t
                         border-white/10
@@ -396,21 +487,19 @@ export default function OnlineUsersDrawer({
                         flex
                         items-center
                         gap-4
-                    ">
-
-                                        <input
-                                            value={messageText}
-                                            onChange={(e) =>
-                                                setMessageText(e.target.value)
-                                            }
-                                            onKeyDown={(e) => {
-                                                console.log('on enter :', e.key)
-                                                if (e.key === "Enter") {
-                                                    sendMessage()
-                                                }
-                                            }}
-                                            placeholder="Type message..."
-                                            className="
+                    "
+                >
+                  <input
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => {
+                      console.log("on enter :", e.key);
+                      if (e.key === "Enter") {
+                        sendMessage();
+                      }
+                    }}
+                    placeholder="Type message..."
+                    className="
                                 flex-1
                                 h-[50px]
                                 rounded-2xl
@@ -421,11 +510,11 @@ export default function OnlineUsersDrawer({
                                 text-white
                                 outline-none
                             "
-                                        />
+                  />
 
-                                        <button
-                                            onClick={sendMessage}
-                                            className="
+                  <button
+                    onClick={sendMessage}
+                    className="
                                 h-[50px]
                                 px-6
                                 rounded-2xl
@@ -433,21 +522,15 @@ export default function OnlineUsersDrawer({
                                 text-white
                                 font-semibold
                             "
-                                        >
-                                            Send
-                                        </button>
-
-                                    </div>
-                                </>
-                            )
-                        }
-
-                    </div>
-
+                  >
+                    Send
+                  </button>
                 </div>
-
-            </div>
-
+              </>
+            )}
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

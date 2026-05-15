@@ -100,6 +100,12 @@ const meetingUsers = new Map();
 // online users map for all authenticated and logined users
 const onlineUsers = new Map()
 
+// Emit online users
+const emitOnlineUsers = () => {
+    io.emit(SOCKET_EVENTS.ONLINE_USERS,
+        Array.from(onlineUsers.keys())
+    )
+}
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
@@ -109,6 +115,9 @@ io.on("connection", (socket) => {
         socketId: socket.id,
         username: user.username
     })
+
+    // Emit the online users once new users live
+    emitOnlineUsers()
 
     // Join personal room for direct messaging
     socket.join(user.userId);
@@ -316,6 +325,8 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
         meetingUsers.delete(socket.id);
+        onlineUsers.delete(user.userId)
+        emitOnlineUsers()
     });
 });
 

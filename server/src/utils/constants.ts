@@ -16,4 +16,5 @@ export const SOCKET_EVENTS = {
     PRIVATE_MESSAGE_RECEIVED: "private-message-received",
     GET_CONVERSATION_MESSAGES: "get-conversation-messages",
     CONVERSATION_MESSAGES: "conversation-messages",
+    ONLINE_USERS: "online-users",
 };
