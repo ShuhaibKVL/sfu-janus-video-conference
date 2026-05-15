@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NEXT_HANDLER_URL } from "@/lib/constants";
 import { EMAIL_REGEX, PASSWORD_REGEX } from "@/lib/utils";
+import Link from "next/link";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -226,6 +227,23 @@ export default function SignupPage() {
         >
           {loading ? "Creating..." : "Create Account"}
         </button>
+
+        <Link
+          href="/login"
+          className="
+                                h-[56px]
+                                px-8
+                                rounded-2xl
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                text-sm
+                                font-serif
+                            "
+        >
+          Sign In
+        </Link>
       </div>
     </main>
   );

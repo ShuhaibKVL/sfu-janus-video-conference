@@ -92,6 +92,43 @@ export default function OnlineUsersDrawer({
       setOnlineUserIds(users);
     });
 
+    socket.on(SOCKET_EVENTS.CONNECTION_REQUEST_RECEIVED, (connection) => {
+      console.log("connection requst recieved :", connection);
+      setUsers(
+        (prev) =>
+          prev?.map((user) => {
+            if (user._id !== connection.requesterId) {
+              return user;
+            }
+
+            return {
+              ...user,
+              connection,
+            };
+          }) || [],
+      );
+    });
+
+    socket.on(SOCKET_EVENTS.CONNECTION_ACCEPTED, (updatedConnection) => {
+      console.log("connection request accepted :", updatedConnection);
+      setUsers(
+        (prev) =>
+          prev?.map((user) => {
+            if (
+              user._id !== updatedConnection.requesterId &&
+              user._id !== updatedConnection.receiverId
+            ) {
+              return user;
+            }
+
+            return {
+              ...user,
+              connection: updatedConnection,
+            };
+          }) || [],
+      );
+    });
+
     return () => {
       socket.off(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED);
       socket.off(SOCKET_EVENTS.ONLINE_USERS);
@@ -193,6 +230,21 @@ export default function OnlineUsersDrawer({
     });
   };
 
+  // Send connection request
+  const sendConnecrtion = (targetUserId: string, note?: string) => {
+    console.log("send connection request");
+    if (!socket) return;
+    socket?.emit(SOCKET_EVENTS.SEND_CONNECTION_REQUEST, { targetUserId, note });
+  };
+
+  const acceptRequest = (connectionId: string) => {
+    socket?.emit(SOCKET_EVENTS.ACCEPT_CONNECTION_REQUEST, { connectionId });
+  };
+
+  const rejectRequest = (connectionId: string) => {
+    socket?.emit(SOCKET_EVENTS.REGISTER_USER, { connectionId });
+  };
+
   if (!open) {
     return null;
   }
@@ -286,50 +338,163 @@ export default function OnlineUsersDrawer({
           >
             {users?.map((user) => {
               const isOnline = onlineUserIds.includes(user._id);
+              const isConnection = user?.connection;
+              console.log("user :", user);
+              const currentUser = JSON.parse(
+                localStorage.getItem("user") || "{}",
+              );
               return (
                 <div
                   key={user._id}
-                  onClick={() => setSelectedUser(user)}
+                  onClick={() => {
+                    if (isConnection?.status === "accepted") {
+                      setSelectedUser(user);
+                    }
+                  }}
                   className={`
-                        px-5
-                        py-4
-                        border-b
-                        border-white/5
-                        cursor-pointer
-                        transition-all
+    px-5
+    py-4
+    border-b
+    border-white/5
+    transition-all
+    cursor-pointer
 
-                        ${
-                          selectedUser?._id === user._id
-                            ? "bg-white/10"
-                            : "hover:bg-white/[0.03]"
-                        }
-                    `}
+    ${selectedUser?._id === user._id ? "bg-white/10" : "hover:bg-white/[0.03]"}
+  `}
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`
-                            w-11
-                            h-11
-                            rounded-full
-                            flex
-                            items-center
-                            justify-center
-                            text-white
-                            font-bold
-                            ${isOnline ? "border-2 border-green-400" : "bg-indigo-600"}
-                        `}
-                    >
-                      {user.name[0]}
+                  <div className="flex items-center justify-between gap-3">
+                    {/* LEFT */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`
+          w-11
+          h-11
+          rounded-full
+          flex
+          items-center
+          justify-center
+          text-white
+          font-semibold
+          shrink-0
+          bg-neutral-800
+          border
+
+          ${isOnline ? "border-green-500" : "border-white/10"}
+        `}
+                      >
+                        {user.name[0]}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="text-white font-medium truncate">
+                          {user.name}
+                        </h3>
+
+                        <p
+                          className={`
+            text-xs
+            truncate
+
+            ${isOnline ? "text-green-400" : "text-neutral-500"}
+          `}
+                        >
+                          {isOnline ? "Online" : user.email}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="text-white font-medium">{user.name}</h3>
+                    {/* RIGHT ACTIONS */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* NO CONNECTION */}
+                      {!isConnection && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendConnecrtion(user._id);
+                          }}
+                          className="
+            px-3
+            py-1.5
+            rounded-lg
+            bg-indigo-600
+            hover:bg-indigo-500
+            text-white
+            text-xs
+            font-medium
+            transition
+          "
+                        >
+                          Connect
+                        </button>
+                      )}
 
-                      <p
-                        className={`text-sm ${isOnline ? "text-green-400" : "text-gray-400"}`}
-                      >
-                        {isOnline ? "Online" : user.email}
-                      </p>
+                      {/* PENDING */}
+                      {isConnection?.status === "pending" && (
+                        <>
+                          {/* CURRENT USER SENT REQUEST */}
+                          {isConnection?.requesterId === currentUser.id ? (
+                            <div
+                              className="
+                px-3
+                py-1.5
+                rounded-lg
+                border
+                border-yellow-500/20
+                bg-yellow-500/10
+                text-yellow-300
+                text-xs
+                font-medium
+              "
+                            >
+                              Pending Request
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  acceptRequest(user.connection?._id as string);
+                                }}
+                                className="
+                  px-3
+                  py-1.5
+                  rounded-lg
+                  bg-green-600
+                  hover:bg-green-500
+                  text-white
+                  text-xs
+                  font-medium
+                  transition
+                "
+                              >
+                                Accept
+                              </button>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  rejectRequest(user.connection?._id as string);
+                                }}
+                                className="
+                  px-3
+                  py-1.5
+                  rounded-lg
+                  bg-neutral-800
+                  hover:bg-neutral-700
+                  border
+                  border-white/10
+                  text-white
+                  text-xs
+                  font-medium
+                  transition
+                "
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

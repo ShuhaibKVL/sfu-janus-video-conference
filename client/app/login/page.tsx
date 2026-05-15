@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NEXT_HANDLER_URL } from "@/lib/constants";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -83,6 +84,22 @@ export default function LoginPage() {
         >
           {loading ? "Signing In..." : "Sign In"}
         </button>
+        <Link
+          href="/signup"
+          className="
+                                h-[56px]
+                                px-8
+                                rounded-2xl
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                text-sm
+                                font-serif
+                            "
+        >
+          Sign up
+        </Link>
       </div>
     </main>
   );

@@ -33,6 +33,12 @@ export const SOCKET_EVENTS = {
   GET_CONVERSATION_MESSAGES: "get-conversation-messages",
   CONVERSATION_MESSAGES: "conversation-messages",
   ONLINE_USERS: "online-users",
+
+  SEND_CONNECTION_REQUEST: "send-connection-request",
+  CONNECTION_REQUEST_RECEIVED: "connection-request-received",
+  ACCEPT_CONNECTION_REQUEST: "accept-connection-request",
+  REJECT_CONNECTION_REQUEST: "reject-connection-request",
+  CONNECTION_ACCEPTED: "accept-connection-request",
 };
 
 export const BACKEND_URLS = {
