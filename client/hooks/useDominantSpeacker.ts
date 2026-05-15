@@ -1,191 +1,139 @@
 "use client";
 
-import {
-    useEffect,
-    useRef,
-    useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SpeakerData {
-    stream: MediaStream;
-    publisherId: string;
+  stream: MediaStream;
+  publisherId: string;
 }
 
-export function useDominantSpeaker(
-    speakers: SpeakerData[]
-) {
-    const [activeSpeakerId, setActiveSpeakerId] =
-        useState<string | null>(null);
+export function useDominantSpeaker(speakers: SpeakerData[]) {
+  const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
 
-    /**
-     * Current dominant speaker
-     */
-    const currentSpeakerRef =
-        useRef<string | null>(null);
+  /**
+   * Current dominant speaker
+   */
+  const currentSpeakerRef = useRef<string | null>(null);
 
-    /**
-     * Prevent rapid switching
-     */
-    const lastSwitchRef = useRef(0);
+  /**
+   * Prevent rapid switching
+   */
+  const lastSwitchRef = useRef(0);
 
-    /**
-     * Silence timeout
-     */
-    const activeSpeakerTimeoutRef =
-        useRef<NodeJS.Timeout | null>(null);
+  /**
+   * Silence timeout
+   */
+  const activeSpeakerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    useEffect(() => {
-        const audioContexts: AudioContext[] = [];
+  useEffect(() => {
+    const audioContexts: AudioContext[] = [];
 
-        const animationFrames: number[] = [];
+    const animationFrames: number[] = [];
 
-        speakers.forEach(
-            ({ stream, publisherId }) => {
-                const hasAudio =
-                    stream.getAudioTracks().length > 0;
+    speakers.forEach(({ stream, publisherId }) => {
+      const hasAudio = stream.getAudioTracks().length > 0;
 
-                if (!hasAudio) return;
+      if (!hasAudio) return;
 
-                const audioContext =
-                    new AudioContext();
+      const audioContext = new AudioContext();
 
-                audioContexts.push(audioContext);
+      audioContexts.push(audioContext);
 
-                const analyser =
-                    audioContext.createAnalyser();
+      const analyser = audioContext.createAnalyser();
 
-                analyser.fftSize = 512;
+      analyser.fftSize = 512;
 
-                const source =
-                    audioContext.createMediaStreamSource(
-                        stream
-                    );
+      const source = audioContext.createMediaStreamSource(stream);
 
-                source.connect(analyser);
+      source.connect(analyser);
 
-                const dataArray =
-                    new Uint8Array(
-                        analyser.frequencyBinCount
-                    );
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-                const checkAudio = () => {
-                    analyser.getByteFrequencyData(
-                        dataArray
-                    );
+      const checkAudio = () => {
+        analyser.getByteFrequencyData(dataArray);
 
-                    const average =
-                        dataArray.reduce(
-                            (a, b) => a + b,
-                            0
-                        ) / dataArray.length;
+        const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-                    /**
-                     * Ignore background noise
-                     */
-                    const SPEAK_THRESHOLD = 20;
+        /**
+         * Ignore background noise
+         */
+        const SPEAK_THRESHOLD = 20;
 
-                    /**
-                     * Prevent infinite speaker switching
-                     */
-                    const SWITCH_COOLDOWN = 2000;
+        /**
+         * Prevent infinite speaker switching
+         */
+        const SWITCH_COOLDOWN = 2000;
 
-                    const now = Date.now();
+        const now = Date.now();
 
-                    const canSwitch =
-                        now -
-                        lastSwitchRef.current >
-                        SWITCH_COOLDOWN;
+        const canSwitch = now - lastSwitchRef.current > SWITCH_COOLDOWN;
 
-                    /**
-                     * New dominant speaker detected
-                     */
-                    if (
-                        average > SPEAK_THRESHOLD &&
-                        currentSpeakerRef.current !==
-                        publisherId &&
-                        canSwitch
-                    ) {
-                        currentSpeakerRef.current =
-                            publisherId;
+        /**
+         * New dominant speaker detected
+         */
+        if (
+          average > SPEAK_THRESHOLD &&
+          currentSpeakerRef.current !== publisherId &&
+          canSwitch
+        ) {
+          currentSpeakerRef.current = publisherId;
 
-                        lastSwitchRef.current = now;
+          lastSwitchRef.current = now;
 
-                        setActiveSpeakerId(
-                            publisherId
-                        );
-                    }
+          setActiveSpeakerId(publisherId);
+        }
 
-                    /**
-                     * Reset silence timeout
-                     */
-                    if (
-                        average > SPEAK_THRESHOLD &&
-                        currentSpeakerRef.current ===
-                        publisherId
-                    ) {
-                        // clear previous timeout
-                        if (
-                            activeSpeakerTimeoutRef.current
-                        ) {
-                            clearTimeout(
-                                activeSpeakerTimeoutRef.current
-                            );
-                        }
+        /**
+         * Reset silence timeout
+         */
+        if (
+          average > SPEAK_THRESHOLD &&
+          currentSpeakerRef.current === publisherId
+        ) {
+          // clear previous timeout
+          if (activeSpeakerTimeoutRef.current) {
+            clearTimeout(activeSpeakerTimeoutRef.current);
+          }
 
-                        // auto remove highlight after silence
-                        activeSpeakerTimeoutRef.current =
-                            setTimeout(() => {
-                                currentSpeakerRef.current =
-                                    null;
+          // auto remove highlight after silence
+          activeSpeakerTimeoutRef.current = setTimeout(() => {
+            currentSpeakerRef.current = null;
 
-                                setActiveSpeakerId(
-                                    null
-                                );
-                            }, 1500);
-                    }
+            setActiveSpeakerId(null);
+          }, 1500);
+        }
 
-                    const frame =
-                        requestAnimationFrame(
-                            checkAudio
-                        );
+        const frame = requestAnimationFrame(checkAudio);
 
-                    animationFrames.push(frame);
-                };
+        animationFrames.push(frame);
+      };
 
-                checkAudio();
-            }
-        );
+      checkAudio();
+    });
 
-        return () => {
-            /**
-             * cancel animation loops
-             * 
-             * 
-             */
-            animationFrames.forEach((frame) =>
-                cancelAnimationFrame(frame)
-            );
+    return () => {
+      /**
+       * cancel animation loops
+       *
+       *
+       */
+      animationFrames.forEach((frame) => cancelAnimationFrame(frame));
 
-            /**
-             * close audio contexts
-             */
-            audioContexts.forEach((ctx) => {
-                ctx.close();
-            });
+      /**
+       * close audio contexts
+       */
+      audioContexts.forEach((ctx) => {
+        ctx.close();
+      });
 
-            /** 
-             * cleanup timeout
-             */
-            if (
-                activeSpeakerTimeoutRef.current
-            ) {
-                clearTimeout(
-                    activeSpeakerTimeoutRef.current
-                );
-            }
-        };
-    }, [speakers]);
+      /**
+       * cleanup timeout
+       */
+      if (activeSpeakerTimeoutRef.current) {
+        clearTimeout(activeSpeakerTimeoutRef.current);
+      }
+    };
+  }, [speakers]);
 
-    return activeSpeakerId;
+  return activeSpeakerId;
 }
-

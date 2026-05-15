@@ -8,178 +8,156 @@ import OnlineUsersDrawer from "./UsersDrawer.compoenent";
 import { useGlobalSocket } from "@/app/context/socket.context";
 
 export default function HomePage() {
+  const router = useRouter();
+  const socket = useGlobalSocket();
 
-    const router = useRouter();
-    const socket = useGlobalSocket()
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
 
-    const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
+  const [joinRoomId, setJoinRoomId] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    const [joinRoomId, setJoinRoomId] = useState("");
-    const [loading, setLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-    const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
-    const [showDeviceModal, setShowDeviceModal] =
-        useState(false);
+  const [pendingAction, setPendingAction] = useState<"create" | "join" | null>(
+    null,
+  );
+  const [openUsers, setOpenUsers] = useState<boolean>(false);
 
-    const [pendingAction, setPendingAction] =
-        useState<"create" | "join" | null>(null);
-    const [openUsers, setOpenUsers] = useState<boolean>(false)
+  useEffect(() => {
+    const user = localStorage.getItem("user");
 
-    useEffect(() => {
+    if (user) {
+      const parsedUser = JSON.parse(user);
 
-        const user = localStorage.getItem("user");
+      setUsername(parsedUser.name);
+      setEmail(parsedUser.email);
+    }
+  }, []);
 
-        if (user) {
-            const parsedUser = JSON.parse(user);
-
-            setUsername(parsedUser.name);
-            setEmail(parsedUser.email);
-        }
-
-    }, []);
-
-    /**
-     * CLOSE DROPDOWN ON OUTSIDE CLICK
-     */
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target as Node)
-            ) {
-                setDropdownOpen(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-
-        return () => {
-            document.removeEventListener(
-                "mousedown",
-                handleClickOutside
-            );
-        };
-
-    }, []);
-
-    /**
-     * CREATE ROOM
-     */
-    const handleCreateRoom = async () => {
-        try {
-            setLoading(true);
-
-            const { API, CREATE_ROOM } = NEXT_HANDLER_URL;
-
-            const res = await fetch(`${API}${CREATE_ROOM}`, {
-                method: "POST",
-            });
-
-            const data = await res.json();
-
-            if (!data.success) {
-                alert(data.error);
-                return;
-            }
-
-            router.push(
-                `/room/${data.roomId}?username=${encodeURIComponent(username)}`
-            );
-
-        } catch (error) {
-
-            console.error(error);
-
-        } finally {
-
-            setLoading(false);
-        }
+  /**
+   * CLOSE DROPDOWN ON OUTSIDE CLICK
+   */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
     };
 
-    /**
-     * JOIN ROOM
-     */
-    const handleJoinRoom = () => {
+    document.addEventListener("mousedown", handleClickOutside);
 
-        if (!joinRoomId.trim()) {
-            alert("Enter Room ID");
-            return;
-        }
-
-        router.push(
-            `/room/${joinRoomId}?username=${encodeURIComponent(username)}`
-        );
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
+  }, []);
 
-    /**
-     * LOGOUT
-     */
-    const handleLogout = async () => {
+  /**
+   * CREATE ROOM
+   */
+  const handleCreateRoom = async () => {
+    try {
+      setLoading(true);
 
-        try {
+      const { API, CREATE_ROOM } = NEXT_HANDLER_URL;
 
-            await fetch(NEXT_HANDLER_URL.LOGOUT, {
-                method: "POST",
-            });
+      const res = await fetch(`${API}${CREATE_ROOM}`, {
+        method: "POST",
+      });
 
-            localStorage.removeItem("user");
+      const data = await res.json();
 
-            router.push("/login");
+      if (!data.success) {
+        alert(data.error);
+        return;
+      }
 
-        } catch (error) {
+      router.push(
+        `/room/${data.roomId}?username=${encodeURIComponent(username)}`,
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            console.error(error);
-        }
-    };
+  /**
+   * JOIN ROOM
+   */
+  const handleJoinRoom = () => {
+    if (!joinRoomId.trim()) {
+      alert("Enter Room ID");
+      return;
+    }
 
-    console.log('open users :', openUsers)
+    router.push(`/room/${joinRoomId}?username=${encodeURIComponent(username)}`);
+  };
 
-    return (
-        <main className="min-h-screen bg-black overflow-hidden">
-            {/*  Side users explor drawer*/}
-            <div onClick={() => setOpenUsers(true)} className="absolute bottom-3.5 right-1.5 w-10 h-10 rounded-l-full rounded-r-md rounded-br-full bg-gradient-to-r from-indigo-600 to-purple-700 flex items-center justify-center text-white font-bold text-sm hover:shadow cursor-pointer" title="Chat with our users">
-                Chat
-            </div>
+  /**
+   * LOGOUT
+   */
+  const handleLogout = async () => {
+    try {
+      await fetch(NEXT_HANDLER_URL.LOGOUT, {
+        method: "POST",
+      });
 
-            <OnlineUsersDrawer open={openUsers} onClose={() => setOpenUsers(!openUsers)} />
-            {/* BACKGROUND GLOW */}
-            <div className="absolute inset-0 opacity-30 pointer-events-none">
-                <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl" />
+      localStorage.removeItem("user");
 
-                <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] rounded-full bg-purple-500/10 blur-3xl" />
-            </div>
+      router.push("/login");
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-            {/* HEADER */}
-            <header className="relative z-50 h-[80px] border-b border-white/10 bg-black/70 backdrop-blur-xl px-8 flex items-center justify-between">
+  console.log("open users :", openUsers);
 
-                {/* LOGO */}
-                <div className="flex items-center gap-3">
+  return (
+    <main className="min-h-screen bg-black overflow-hidden">
+      {/*  Side users explor drawer*/}
+      <div
+        onClick={() => setOpenUsers(true)}
+        className="absolute bottom-3.5 right-1.5 w-10 h-10 rounded-l-full rounded-r-md rounded-br-full bg-gradient-to-r from-indigo-600 to-purple-700 flex items-center justify-center text-white font-bold text-sm hover:shadow cursor-pointer"
+        title="Chat with our users"
+      >
+        Chat
+      </div>
 
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-700 flex items-center justify-center text-white font-bold">
-                        J
-                    </div>
+      <OnlineUsersDrawer
+        open={openUsers}
+        onClose={() => setOpenUsers(!openUsers)}
+      />
+      {/* BACKGROUND GLOW */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl" />
 
-                    <h1 className="text-white text-2xl font-bold">
-                        Janus SFU
-                    </h1>
-                </div>
+        <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] rounded-full bg-purple-500/10 blur-3xl" />
+      </div>
 
-                {/* USER PROFILE */}
-                <div
-                    ref={dropdownRef}
-                    className="relative"
-                >
+      {/* HEADER */}
+      <header className="relative z-50 h-[80px] border-b border-white/10 bg-black/70 backdrop-blur-xl px-8 flex items-center justify-between">
+        {/* LOGO */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-700 flex items-center justify-center text-white font-bold">
+            J
+          </div>
 
-                    <button
-                        onClick={() =>
-                            setDropdownOpen(!dropdownOpen)
-                        }
-                        className="
+          <h1 className="text-white text-2xl font-bold">Janus SFU</h1>
+        </div>
+
+        {/* USER PROFILE */}
+        <div ref={dropdownRef} className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="
                             flex
                             items-center
                             gap-3
@@ -189,10 +167,10 @@ export default function HomePage() {
                             hover:bg-white/5
                             transition-all
                         "
-                    >
-
-                        {/* AVATAR */}
-                        <div className="
+          >
+            {/* AVATAR */}
+            <div
+              className="
                             w-12
                             h-12
                             rounded-full
@@ -205,26 +183,22 @@ export default function HomePage() {
                             text-white
                             font-bold
                             text-lg
-                        ">
-                            {username?.slice(0, 2).toUpperCase()}
-                        </div>
+                        "
+            >
+              {username?.slice(0, 2).toUpperCase()}
+            </div>
 
-                        <div className="text-left">
-                            <p className="text-white font-semibold">
-                                {username}
-                            </p>
+            <div className="text-left">
+              <p className="text-white font-semibold">{username}</p>
 
-                            <p className="text-neutral-400 text-sm">
-                                Online
-                            </p>
-                        </div>
+              <p className="text-neutral-400 text-sm">Online</p>
+            </div>
+          </button>
 
-                    </button>
-
-                    {/* DROPDOWN */}
-                    {
-                        dropdownOpen && (
-                            <div className="
+          {/* DROPDOWN */}
+          {dropdownOpen && (
+            <div
+              className="
                                 absolute
                                 right-0
                                 top-[70px]
@@ -236,11 +210,11 @@ export default function HomePage() {
                                 backdrop-blur-xl
                                 p-6
                                 shadow-2xl
-                            ">
-
-                                <div className="flex items-center gap-4 mb-6">
-
-                                    <div className="
+                            "
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div
+                  className="
                                         w-16
                                         h-16
                                         rounded-full
@@ -253,26 +227,22 @@ export default function HomePage() {
                                         text-white
                                         text-2xl
                                         font-bold
-                                    ">
-                                        {username?.slice(0, 2).toUpperCase()}
-                                    </div>
+                                    "
+                >
+                  {username?.slice(0, 2).toUpperCase()}
+                </div>
 
-                                    <div>
-                                        <h2 className="text-white text-xl font-bold">
-                                            {username}
-                                        </h2>
+                <div>
+                  <h2 className="text-white text-xl font-bold">{username}</h2>
 
-                                        <p className="text-neutral-400">
-                                            {email}
-                                        </p>
-                                    </div>
-                                </div>
+                  <p className="text-neutral-400">{email}</p>
+                </div>
+              </div>
 
-                                <div className="border-t border-white/10 pt-5">
-
-                                    <button
-                                        onClick={handleLogout}
-                                        className="
+              <div className="border-t border-white/10 pt-5">
+                <button
+                  onClick={handleLogout}
+                  className="
                                             w-full
                                             h-[54px]
                                             rounded-2xl
@@ -284,25 +254,21 @@ export default function HomePage() {
                                             hover:bg-red-500/20
                                             transition-all
                                         "
-                                    >
-                                        Logout
-                                    </button>
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
 
-                                </div>
-                            </div>
-                        )
-                    }
-                </div>
-            </header>
-
-            {/* CENTER CONTENT */}
-            <section className="relative flex items-center justify-center px-4 py-16">
-
-                <div className="relative w-full max-w-xl">
-
-                    {/* GLOW */}
-                    <div
-                        className="
+      {/* CENTER CONTENT */}
+      <section className="relative flex items-center justify-center px-4 py-16">
+        <div className="relative w-full max-w-xl">
+          {/* GLOW */}
+          <div
+            className="
                             absolute
                             inset-0
                             rounded-[32px]
@@ -315,44 +281,49 @@ export default function HomePage() {
                             animate-pulse
                             -z-10
                         "
-                    />
+          />
 
-                    {/* CARD */}
-                    <div className="
+          {/* CARD */}
+          <div
+            className="
                         rounded-[32px]
                         border
                         border-white/10
                         bg-neutral-950
                         px-8
                         py-10
-                    ">
-
-                        <h1 className="
+                    "
+          >
+            <h1
+              className="
                             text-5xl
                             font-bold
                             text-center
                             text-white
                             mb-3
-                        ">
-                            Janus SFU Meeting
-                        </h1>
+                        "
+            >
+              Janus SFU Meeting
+            </h1>
 
-                        <p className="
+            <p
+              className="
                             text-center
                             text-neutral-400
                             mb-10
-                        ">
-                            Seamless real-time conferencing
-                        </p>
+                        "
+            >
+              Seamless real-time conferencing
+            </p>
 
-                        {/* CREATE ROOM */}
-                        <button
-                            onClick={() => {
-                                setPendingAction("create");
-                                setShowDeviceModal(true);
-                            }}
-                            disabled={loading}
-                            className="
+            {/* CREATE ROOM */}
+            <button
+              onClick={() => {
+                setPendingAction("create");
+                setShowDeviceModal(true);
+              }}
+              disabled={loading}
+              className="
                                 w-full
                                 h-[60px]
                                 rounded-2xl
@@ -365,33 +336,25 @@ export default function HomePage() {
                                 transition-all
                                 mb-8
                             "
-                        >
-                            {
-                                loading
-                                    ? "Creating..."
-                                    : "Create Room"
-                            }
-                        </button>
+            >
+              {loading ? "Creating..." : "Create Room"}
+            </button>
 
-                        {/* DIVIDER */}
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="flex-1 h-[1px] bg-white/10" />
+            {/* DIVIDER */}
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex-1 h-[1px] bg-white/10" />
 
-                            <span className="text-neutral-400">
-                                OR
-                            </span>
+              <span className="text-neutral-400">OR</span>
 
-                            <div className="flex-1 h-[1px] bg-white/10" />
-                        </div>
+              <div className="flex-1 h-[1px] bg-white/10" />
+            </div>
 
-                        {/* ROOM INPUT */}
-                        <input
-                            placeholder="Enter Room ID"
-                            value={joinRoomId}
-                            onChange={(e) =>
-                                setJoinRoomId(e.target.value)
-                            }
-                            className="
+            {/* ROOM INPUT */}
+            <input
+              placeholder="Enter Room ID"
+              value={joinRoomId}
+              onChange={(e) => setJoinRoomId(e.target.value)}
+              className="
                                 w-full
                                 h-[60px]
                                 rounded-2xl
@@ -403,15 +366,15 @@ export default function HomePage() {
                                 outline-none
                                 mb-5
                             "
-                        />
+            />
 
-                        {/* JOIN ROOM */}
-                        <button
-                            onClick={() => {
-                                setPendingAction("join");
-                                setShowDeviceModal(true);
-                            }}
-                            className="
+            {/* JOIN ROOM */}
+            <button
+              onClick={() => {
+                setPendingAction("join");
+                setShowDeviceModal(true);
+              }}
+              className="
                                 w-full
                                 h-[60px]
                                 rounded-2xl
@@ -424,34 +387,32 @@ export default function HomePage() {
                                 hover:scale-[1.01]
                                 transition-all
                             "
-                        >
-                            Join Room
-                        </button>
+            >
+              Join Room
+            </button>
+          </div>
+        </div>
+      </section>
+      <DeviceSetupModal
+        isOpen={showDeviceModal}
+        onClose={() => setShowDeviceModal(false)}
+        onContinue={(deviceData) => {
+          localStorage.setItem(
+            LS_KEYS.DEVICE_SETUP,
+            JSON.stringify(deviceData),
+          );
 
-                    </div>
-                </div>
-            </section>
-            <DeviceSetupModal
-                isOpen={showDeviceModal}
-                onClose={() => setShowDeviceModal(false)}
-                onContinue={(deviceData) => {
+          setShowDeviceModal(false);
 
-                    localStorage.setItem(
-                        LS_KEYS.DEVICE_SETUP,
-                        JSON.stringify(deviceData)
-                    );
+          if (pendingAction === "create") {
+            handleCreateRoom();
+          }
 
-                    setShowDeviceModal(false);
-
-                    if (pendingAction === "create") {
-                        handleCreateRoom();
-                    }
-
-                    if (pendingAction === "join") {
-                        handleJoinRoom();
-                    }
-                }}
-            />
-        </main>
-    );
+          if (pendingAction === "join") {
+            handleJoinRoom();
+          }
+        }}
+      />
+    </main>
+  );
 }

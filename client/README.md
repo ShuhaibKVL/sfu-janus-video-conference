@@ -35,18 +35,17 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-
-------------------------------------------
+---
 
 app/
 │
-├── page.tsx                      ← landing page
+├── page.tsx ← landing page
 │
 ├── room/
-│   └── [roomId]/
-│       └── page.tsx              ← video meeting page
+│ └── [roomId]/
+│ └── page.tsx ← video meeting page
 │
 └── api/
-    └── janus/
-        └── create-room/
-            └── route.ts
+└── janus/
+└── create-room/
+└── route.ts

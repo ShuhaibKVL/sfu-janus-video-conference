@@ -1,146 +1,101 @@
-import {
-    useEffect,
-    useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-    SOCKET_EVENTS
-} from "@/lib/constants";
+import { SOCKET_EVENTS } from "@/lib/constants";
 import { useGlobalSocket } from "@/app/context/socket.context";
 
-export const useSocket = (
-    roomId: number,
-    username: string,
-) => {
+export const useSocket = (roomId: number, username: string) => {
+  const socket = useGlobalSocket();
+  const [isConnected, setIsConnected] = useState(false);
 
-    const socket = useGlobalSocket();
-    const [isConnected, setIsConnected] =
-        useState(false);
-
-    /*
+  /*
     =========================
     ROOM JOIN
     =========================
     */
 
-    useEffect(() => {
-        if (!socket) {
-            console.warn("Socket not available yet");
-            return;
-        }
+  useEffect(() => {
+    if (!socket) {
+      console.warn("Socket not available yet");
+      return;
+    }
 
-        const handleConnect = () => {
+    const handleConnect = () => {
+      console.log("Socket connected:", socket.id);
 
-            console.log(
-                "Socket connected:",
-                socket.id
-            );
+      setIsConnected(true);
 
-            setIsConnected(true);
-
-            /*
+      /*
             JOIN MEETING ROOM
             */
 
-            socket.emit(
-                SOCKET_EVENTS.JOIN,
-                {
-                    roomId,
-                    username,
-                }
-            );
-        };
+      socket.emit(SOCKET_EVENTS.JOIN, {
+        roomId,
+        username,
+      });
+    };
 
-        const handleDisconnect = () => {
+    const handleDisconnect = () => {
+      setIsConnected(false);
 
-            setIsConnected(false);
+      console.log("Socket disconnected");
+    };
 
-            console.log("Socket disconnected");
-        };
-
-        /*
+    /*
         listeners
         */
 
-        socket.on(
-            "connect",
-            handleConnect
-        );
+    socket.on("connect", handleConnect);
 
-        socket.on(
-            "disconnect",
-            handleDisconnect
-        );
+    socket.on("disconnect", handleDisconnect);
 
-        /*
+    /*
         already connected case
         */
 
-        if (socket.connected) {
-            handleConnect();
-        }
+    if (socket.connected) {
+      handleConnect();
+    }
 
-        return () => {
+    return () => {
+      socket.off("connect", handleConnect);
 
-            socket.off(
-                "connect",
-                handleConnect
-            );
+      socket.off("disconnect", handleDisconnect);
 
-            socket.off(
-                "disconnect",
-                handleDisconnect
-            );
-
-            /*
+      /*
             IMPORTANT:
             leave ONLY room
             NOT socket disconnect
             */
 
-            socket.emit(
-                SOCKET_EVENTS.LEAVE,
-                {
-                    roomId,
-                }
-            );
-        };
-
-    }, [
-        socket,
+      socket.emit(SOCKET_EVENTS.LEAVE, {
         roomId,
-        username
-    ]);
+      });
+    };
+  }, [socket, roomId, username]);
 
-    /*
+  /*
     =========================
     ACTIONS
     =========================
     */
 
-    const emitRaiseHand = (
-        data: {
-            roomId: number;
-            userId: string;
-            username: string;
-            raised: boolean;
-        }
-    ) => {
+  const emitRaiseHand = (data: {
+    roomId: number;
+    userId: string;
+    username: string;
+    raised: boolean;
+  }) => {
+    if (!socket?.connected) {
+      console.warn("Socket not connected");
+      return;
+    }
 
-        if (!socket?.connected) {
-            console.warn("Socket not connected");
-            return;
-        }
+    socket.emit(SOCKET_EVENTS.RAISE_HAND, data);
+  };
 
-        socket.emit(
-            SOCKET_EVENTS.RAISE_HAND,
-            data
-        );
-    };
-
-    return {
-        socket,
-        emitRaiseHand,
-        isConnected
-    };
+  return {
+    socket,
+    emitRaiseHand,
+    isConnected,
+  };
 };

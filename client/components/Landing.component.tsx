@@ -3,18 +3,18 @@
 import Link from "next/link";
 
 export default function LandingPage() {
-
-    return (
-
-        <main className="
+  return (
+    <main
+      className="
             min-h-screen
             bg-black
             flex
             flex-col
-        ">
-
-            {/* HEADER */}
-            <header className="
+        "
+    >
+      {/* HEADER */}
+      <header
+        className="
                 h-[80px]
                 border-b
                 border-white/10
@@ -22,12 +22,12 @@ export default function LandingPage() {
                 flex
                 items-center
                 justify-between
-            ">
-
-                {/* LOGO */}
-                <div className="flex items-center gap-3">
-
-                    <div className="
+            "
+      >
+        {/* LOGO */}
+        <div className="flex items-center gap-3">
+          <div
+            className="
                         w-10
                         h-10
                         rounded-full
@@ -39,22 +39,24 @@ export default function LandingPage() {
                         justify-center
                         text-white
                         font-bold
-                    ">
-                        J
-                    </div>
+                    "
+          >
+            J
+          </div>
 
-                    <h1 className="
+          <h1
+            className="
                         text-white
                         text-2xl
                         font-bold
-                    ">
-                        Janus SFU
-                    </h1>
+                    "
+          >
+            Janus SFU
+          </h1>
+        </div>
 
-                </div>
-
-                {/* ACTIONS */}
-                {/* <div className="flex items-center gap-4">
+        {/* ACTIONS */}
+        {/* <div className="flex items-center gap-4">
 
                     <Link
                         href="/login"
@@ -95,19 +97,21 @@ export default function LandingPage() {
                     </Link>
 
                 </div> */}
+      </header>
 
-            </header>
-
-            {/* CENTER */}
-            <section className="
+      {/* CENTER */}
+      <section
+        className="
                 flex-1
                 flex
                 items-center
                 justify-center
                 px-4
 
-            ">
-                <div className="
+            "
+      >
+        <div
+          className="
                     w-full
                     max-w-3xl
                     rounded-4xl
@@ -117,45 +121,50 @@ export default function LandingPage() {
                     px-10
                     py-16
                     text-center
-                ">
-
-                    {/* TITLE */}
-                    <h1 className="
+                "
+        >
+          {/* TITLE */}
+          <h1
+            className="
                         text-6xl
                         font-bold
                         text-white
                         leading-tight
                         mb-6
-                    ">
-                        Modern Realtime
-                        <br />
-                        Video Meetings
-                    </h1>
+                    "
+          >
+            Modern Realtime
+            <br />
+            Video Meetings
+          </h1>
 
-                    {/* SUBTITLE */}
-                    <p className="
+          {/* SUBTITLE */}
+          <p
+            className="
                         text-neutral-400
                         text-lg
                         leading-relaxed
                         max-w-2xl
                         mx-auto
                         mb-12
-                    ">
-                        Seamless low-latency conferencing powered
-                        by scalable Janus SFU architecture.
-                    </p>
+                    "
+          >
+            Seamless low-latency conferencing powered by scalable Janus SFU
+            architecture.
+          </p>
 
-                    {/* BUTTONS */}
-                    <div className="
+          {/* BUTTONS */}
+          <div
+            className="
                         flex
                         items-center
                         justify-center
                         gap-4
-                    ">
-
-                        <Link
-                            href="/signup"
-                            className="
+                    "
+          >
+            <Link
+              href="/signup"
+              className="
                                 h-[56px]
                                 px-8
                                 rounded-2xl
@@ -168,13 +177,13 @@ export default function LandingPage() {
                                 items-center
                                 justify-center
                             "
-                        >
-                            Join With Us
-                        </Link>
+            >
+              Join With Us
+            </Link>
 
-                        <Link
-                            href="/login"
-                            className="
+            <Link
+              href="/login"
+              className="
                                 h-[56px]
                                 px-8
                                 rounded-2xl
@@ -188,16 +197,12 @@ export default function LandingPage() {
                                 hover:bg-white/5
                                 transition-all
                             "
-                        >
-                            Sign In
-                        </Link>
-
-                    </div>
-
-                </div>
-
-            </section>
-
-        </main>
-    );
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }
