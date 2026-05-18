@@ -1,8 +1,21 @@
+import { jwtVerify } from "jose";
 import { NextResponse, NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/"];
 
-export function middleware(request: NextRequest) {
+async function verifyToken(token: string) {
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+
+    const { payload } = await jwtVerify(token, secret);
+
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
 
   console.log("Middleware token:", token);
@@ -10,20 +23,34 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   console.log("Middleware pathname:", pathname);
+  let isValidToken = false;
 
+  // VERIFY TOKEN
+  if (token) {
+    const decoded = await verifyToken(token);
+
+    if (decoded) {
+      isValidToken = true;
+    }
+  }
   /**
    * User already logged in
    * Prevent login/signup access
    */
-  if (token && PUBLIC_PATHS.includes(pathname)) {
+  if (isValidToken && PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.redirect(new URL("/meet", request.url));
   }
   /**
-   * User not logged in
+   * Unauthenticated users
    * Protect private routes
    */
-  if (!token && !PUBLIC_PATHS.includes(pathname)) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (!isValidToken && !PUBLIC_PATHS.includes(pathname)) {
+    const response = NextResponse.redirect(new URL("/login", request.url));
+
+    // REMOVE EXPIRED TOKEN
+    response.cookies.delete("token");
+
+    return response;
   }
 
   return NextResponse.next();
