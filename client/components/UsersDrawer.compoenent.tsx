@@ -73,7 +73,7 @@ export default function OnlineUsersDrawer({
 
     socket.on(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED, (message) => {
       console.log("message recived :", message);
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev = []) => [...prev, message]);
 
       // if already near bottom
       // auto scroll
@@ -151,7 +151,7 @@ export default function OnlineUsersDrawer({
 
         if (res.ok) {
           const data = await res.json();
-          setMessages(data.data || []);
+          setMessages(Array.isArray(data.data) ? data.data : []);
 
           // scroll only when opening conversation
           requestAnimationFrame(() => {
@@ -214,7 +214,7 @@ export default function OnlineUsersDrawer({
 
     socket.emit(SOCKET_EVENTS.PRIVATE_MESSAGE, payload);
 
-    setMessages((prev) => [
+    setMessages((prev = []) => [
       ...prev,
       {
         senderId: currentUser.id,
