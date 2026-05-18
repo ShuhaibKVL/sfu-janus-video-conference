@@ -129,9 +129,30 @@ export default function OnlineUsersDrawer({
       );
     });
 
+    socket.on(SOCKET_EVENTS.CONNECTION_REJECTED, (updatedConnection) => {
+      setUsers(
+        (prev) =>
+          prev?.map((user) => {
+            if (
+              user._id !== updatedConnection.requesterId &&
+              user._id !== updatedConnection.receiverId
+            ) {
+              return user;
+            }
+
+            return {
+              ...user,
+              connection: updatedConnection,
+            };
+          }) || [],
+      );
+    });
+
     return () => {
       socket.off(SOCKET_EVENTS.PRIVATE_MESSAGE_RECEIVED);
       socket.off(SOCKET_EVENTS.ONLINE_USERS);
+      socket.off(SOCKET_EVENTS.CONNECTION_REQUEST_RECEIVED);
+      socket.off(SOCKET_EVENTS.CONNECTION_ACCEPTED);
     };
   }, [socket]);
 
@@ -242,7 +263,7 @@ export default function OnlineUsersDrawer({
   };
 
   const rejectRequest = (connectionId: string) => {
-    socket?.emit(SOCKET_EVENTS.REGISTER_USER, { connectionId });
+    socket?.emit(SOCKET_EVENTS.REJECT_CONNECTION_REQUEST, { connectionId });
   };
 
   if (!open) {
@@ -495,6 +516,40 @@ export default function OnlineUsersDrawer({
                           )}
                         </>
                       )}
+                      {isConnection?.status === "rejected" &&
+                        (isConnection?.requesterId === currentUser.id ? (
+                          <div
+                            className="
+                px-3
+                py-1.5
+                rounded-lg
+                border
+                border-yellow-500/20
+                bg-yellow-500/10
+                text-orange-400
+                text-xs
+                font-medium
+              "
+                          >
+                            Rejected
+                          </div>
+                        ) : isConnection?.receiverId === currentUser.id ? (
+                          <div
+                            className="
+                px-3
+                py-1.5
+                rounded-lg
+                border
+                border-yellow-500/20
+                bg-yellow-500/10
+                text-orange-400
+                text-xs
+                font-medium
+              "
+                          >
+                            Request Rejected
+                          </div>
+                        ) : null)}
                     </div>
                   </div>
                 </div>

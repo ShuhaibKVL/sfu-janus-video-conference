@@ -23,4 +23,5 @@ export const SOCKET_EVENTS = {
   ACCEPT_CONNECTION_REQUEST: "accept-connection-request",
   REJECT_CONNECTION_REQUEST: "reject-connection-request",
   CONNECTION_ACCEPTED: "accept-connection-request",
+  CONNECTION_REJECTED: "connection-rejected",
 };

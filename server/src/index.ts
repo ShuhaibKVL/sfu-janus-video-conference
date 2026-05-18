@@ -369,6 +369,33 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on(
+    SOCKET_EVENTS.REJECT_CONNECTION_REQUEST,
+    async ({ connectionId }) => {
+      const updatedConnection = await ConnectionModel.findByIdAndUpdate(
+        connectionId,
+        {
+          status: "rejected",
+        },
+        {
+          returnDocument: "after",
+        },
+      );
+
+      if (!updatedConnection) return;
+
+      io.to(updatedConnection.requesterId.toString()).emit(
+        SOCKET_EVENTS.CONNECTION_REJECTED,
+        updatedConnection,
+      );
+
+      io.to(updatedConnection.receiverId.toString()).emit(
+        SOCKET_EVENTS.CONNECTION_REJECTED,
+        updatedConnection,
+      );
+    },
+  );
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
     meetingUsers.delete(socket.id);
