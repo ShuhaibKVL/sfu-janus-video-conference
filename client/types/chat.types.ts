@@ -31,7 +31,3 @@ export interface IConnection {
   status: "pending" | "accepted" | "rejected";
   note?: string;
 }
-
-export interface IShuhaib {
-  name: string;
-}
