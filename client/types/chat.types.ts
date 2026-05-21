@@ -31,3 +31,13 @@ export interface IConnection {
   status: "pending" | "accepted" | "rejected";
   note?: string;
 }
+
+export interface IRecording {
+  _id: string;
+  filename: string;
+  filepath: string;
+  type: string;
+  roomId: string;
+  createdAt: string;
+  size: number;
+}

@@ -49,6 +49,10 @@ interface VideoLayoutProps {
   onVisibleStreamsChange: (ids: string[]) => void;
   activeSpeakerId: string | null;
   prioritySpeakerId: string | null;
+  isRecording: boolean;
+  startRecording: () => void;
+  stopRecording: () => void;
+  isSavingRecording: boolean;
 }
 
 export default function VideoLayout({
@@ -78,6 +82,10 @@ export default function VideoLayout({
   onVisibleStreamsChange,
   activeSpeakerId,
   prioritySpeakerId,
+  isRecording,
+  startRecording,
+  stopRecording,
+  isSavingRecording,
 }: VideoLayoutProps) {
   const [showAllParticipants, setShowAllParticipants] = useState(false);
 
@@ -219,6 +227,22 @@ export default function VideoLayout({
           </div>
         ))}
       </div>
+      {/* Recordings */}
+      {isRecording && (
+        <div className="absolute left-4 top-4 rounded-2xl p-2 bg-sky-600 text-white text-sm">
+          Recoridng...
+        </div>
+      )}
+
+      {isSavingRecording && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black"></div>
+
+            <p className="font-medium text-gray-700">Saving recording...</p>
+          </div>
+        </div>
+      )}
 
       <div
         className={`
@@ -466,6 +490,9 @@ ${
         sendReaction={handleReaction}
         toggleNoiseCancellation={() => {}}
         leaveMeeting={leaveMeeting}
+        isRecording={isRecording}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
       />
     </div>
   );

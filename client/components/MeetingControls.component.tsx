@@ -9,8 +9,7 @@ import {
   MonitorOff,
   Hand,
   MessageSquare,
-  Smile,
-  Sparkles,
+  Circle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -31,6 +30,9 @@ type Props = {
   isNoiseCancellationOn: boolean;
   toggleNoiseCancellation: () => void;
   isHandRaised: boolean;
+  isRecording: boolean;
+  startRecording: () => void;
+  stopRecording: () => void;
 };
 
 const MeetingControls = ({
@@ -51,6 +53,9 @@ const MeetingControls = ({
 
   unreadCount = 0,
   isHandRaised = false,
+  isRecording,
+  startRecording,
+  stopRecording,
 }: Props) => {
   const [showReactions, setShowReactions] = useState(false);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -161,6 +166,22 @@ const MeetingControls = ({
             <MonitorOff className="text-white" size={22} />
           ) : (
             <MonitorUp className="text-white" size={22} />
+          )}
+        </button>
+
+        <button
+          onClick={isRecording ? stopRecording : startRecording}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
+            isRecording
+              ? "bg-sky-600 hover:bg-sky-400"
+              : "bg-slate-800 hover:bg-slate-700"
+          }`}
+          title="Record"
+        >
+          {isRecording ? (
+            <Circle className="text-white" size={22} />
+          ) : (
+            <Circle className="text-white" size={22} />
           )}
         </button>
 

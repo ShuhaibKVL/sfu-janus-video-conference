@@ -3,11 +3,13 @@ import http from "http";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
 
 import { connectDB } from "./config/db";
 import authRoutes from "./routes/auth.routes";
 import chatRoutes from "./routes/chat.routes";
 import userRoutes from "./routes/user.routes";
+import recordingRoutes from "./routes/recording.routes";
 import { SOCKET_EVENTS } from "./utils/constants";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
@@ -36,6 +38,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use("/recordings", express.static(path.join(__dirname, "../recordings")));
 
 /**
  * AUTH ROUTES
@@ -43,6 +46,22 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", authMiddleware, userRoutes);
 app.use("/api/chat", authMiddleware, chatRoutes);
+app.use("/api/recordings", authMiddleware, recordingRoutes);
+
+const convertedPath = path.resolve(process.cwd(), "../januse-server/converted");
+
+console.log("STATIC CONVERTED PATH:", convertedPath);
+
+app.use("/converted", express.static(convertedPath));
+
+app.get("/debug-video", (req, res) => {
+  const filePath =
+    "C:/217/janus-sfu-video-conference/januse-server/converted/unni-final.mp4";
+
+  console.log("DEBUG FILE EXISTS:", require("fs").existsSync(filePath));
+
+  res.sendFile(filePath);
+});
 
 /**
  * DATABASE

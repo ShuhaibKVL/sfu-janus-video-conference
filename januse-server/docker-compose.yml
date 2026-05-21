@@ -7,9 +7,9 @@ services:
     restart: always
 
     ports:
-      - "8088:8088"   # HTTP API
-      - "8188:8188"   # WebSocket API
-      - "8089:8089"   # Admin/Monitor
+      - "8088:8088" # HTTP API
+      - "8188:8188" # WebSocket API
+      - "8089:8089" # Admin/Monitor
       - "10000-10200:10000-10200/udp" # RTP Media
 
     environment:
@@ -17,6 +17,8 @@ services:
 
     volumes:
       - ./config:/usr/local/etc/janus
+      - ./recordings:/recordings
+      - ./converted:/converted
 
     command: >
       janus

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only --ignore-watch converted --ignore-watch recordings src/index.ts",
     "start": "node dist/src/index.js"
   },
   "devDependencies": {

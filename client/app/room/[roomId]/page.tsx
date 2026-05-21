@@ -6,7 +6,7 @@ import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
 import VideoLayout from "@/components/VideoLayout.component";
 import { useSocket } from "@/hooks/useSocket";
-import { LS_KEYS, SOCKET_EVENTS } from "@/lib/constants";
+import { BACKEND_URLS, LS_KEYS, SOCKET_EVENTS } from "@/lib/constants";
 import { IReaction } from "@/types/socket.types";
 import { IChatMessage } from "@/types/chat.types";
 import { useDominantSpeaker } from "@/hooks/useDominantSpeacker";
@@ -70,6 +70,8 @@ export default function RoomPage() {
   const publisherIdRef = useRef<number | null>(null);
   const subscribedFeeds = useRef<Set<number>>(new Set());
   const lastDominantSwitchRef = useRef(0);
+  const recordingNameRef = useRef<string>("");
+  const [isSavingRecording, setIsSavingRecording] = useState(false);
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [screenShareStream, setScreenShareStream] =
@@ -94,6 +96,7 @@ export default function RoomPage() {
     stream: remote.stream,
     publisherId: remote.id,
   }));
+  const [isRecording, setIsRecording] = useState(false);
   const activeSpeakerId = useDominantSpeaker(speakerStreams);
 
   useEffect(() => {
@@ -331,7 +334,7 @@ export default function RoomPage() {
               console.error("Janus room error:", msg.error);
 
               alert("Room not found or invalid room ID");
-
+              router.push("/meet");
               return;
             }
 
@@ -949,6 +952,119 @@ export default function RoomPage() {
     });
   };
 
+  const startRecording = () => {
+    if (!publisherRef.current) return;
+    console.log("start reocrding");
+
+    const recordingName = `room-${roomId}-${Date.now()}-${username}`;
+
+    recordingNameRef.current = recordingName;
+
+    publisherRef.current.send({
+      message: {
+        request: "configure",
+        record: true,
+        filename: `/recordings/${recordingName}`,
+      },
+    });
+
+    // ALSO RECORD SCREEN SHARE IF ACTIVE
+    if (screenPublisherRef.current) {
+      screenPublisherRef.current.send({
+        message: {
+          request: "configure",
+          record: true,
+          filename: `/recordings/${recordingName}-screen`,
+        },
+      });
+    }
+
+    setIsRecording(true);
+  };
+
+  const stopRecording = async () => {
+    if (!publisherRef.current) return;
+    if (isSavingRecording) return;
+
+    setIsSavingRecording(true);
+
+    const recordingName = recordingNameRef.current;
+    try {
+      publisherRef.current.send({
+        message: {
+          request: "configure",
+          record: false,
+        },
+      });
+
+      // Ensures finalized file
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      /*
+        SAVE MAIN CAMERA RECORD
+      */
+      await fetch(BACKEND_URLS.RECORDING.SAVE, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roomId,
+          recordingName,
+          type: "video",
+        }),
+      });
+
+      if (screenPublisherRef.current) {
+        screenPublisherRef.current.send({
+          message: {
+            request: "configure",
+            record: false,
+          },
+        });
+        // Ensures finalized file
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        /*
+          SAVE SCREEN RECORD
+        */
+        await fetch(BACKEND_URLS.RECORDING.SAVE, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            roomId,
+            recordingName: `${recordingName}-screen`,
+            type: "screen",
+          }),
+        });
+      }
+    } catch (error) {
+      console.log("error on stop sharing and save rocords :", error);
+    } finally {
+      setIsRecording(false);
+      setIsSavingRecording(false);
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isSavingRecording) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handler);
+
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+    };
+  }, [isSavingRecording]);
+
   return (
     <VideoLayout
       localVideoRef={localVideoRef}
@@ -988,6 +1104,10 @@ export default function RoomPage() {
       }}
       activeSpeakerId={activeSpeakerId}
       prioritySpeakerId={prioritySpeakerId}
+      isRecording={isRecording}
+      startRecording={startRecording}
+      stopRecording={stopRecording}
+      isSavingRecording={isSavingRecording}
     />
   );
 }

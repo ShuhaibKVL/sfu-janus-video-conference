@@ -11,4 +11,5 @@ room-1234: {
     audiocodec = "opus"
     videocodec = "vp8"
     record = false
+    rec_dir = "/recordings"
 }

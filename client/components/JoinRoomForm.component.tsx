@@ -6,6 +6,7 @@ import { LS_KEYS, NEXT_HANDLER_URL, SOCKET_EVENTS } from "@/lib/constants";
 import DeviceSetupModal from "./DeviceSetupModal.component";
 import OnlineUsersDrawer from "./UsersDrawer.compoenent";
 import { useGlobalSocket } from "@/app/context/socket.context";
+import RecordsDrawer from "./RocordsDrawer.component";
 
 export default function HomePage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function HomePage() {
     null,
   );
   const [openUsers, setOpenUsers] = useState<boolean>(false);
+  const [openRecords, setOpenRecords] = useState<boolean>(false);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
@@ -118,8 +120,6 @@ export default function HomePage() {
     }
   };
 
-  console.log("open users :", openUsers);
-
   return (
     <main className="min-h-screen bg-black overflow-hidden">
       {/*  Side users explor drawer*/}
@@ -134,6 +134,10 @@ export default function HomePage() {
       <OnlineUsersDrawer
         open={openUsers}
         onClose={() => setOpenUsers(!openUsers)}
+      />
+      <RecordsDrawer
+        open={openRecords}
+        onClose={() => setOpenRecords(!openRecords)}
       />
       {/* BACKGROUND GLOW */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
@@ -237,6 +241,12 @@ export default function HomePage() {
 
                   <p className="text-neutral-400">{email}</p>
                 </div>
+              </div>
+              <div
+                onClick={() => setOpenRecords(true)}
+                className="p-2 border-b border-gray-600 hover:bg-gray-800 cursor-pointer"
+              >
+                <h2>Meetings Records</h2>
               </div>
 
               <div className="border-t border-white/10 pt-5">

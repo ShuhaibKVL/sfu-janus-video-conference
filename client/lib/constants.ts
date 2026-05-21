@@ -52,6 +52,10 @@ export const BACKEND_URLS = {
     GET_CONVERSATION: (userId: string) =>
       `${SERVER_URL}/api/chat/conversation/${userId}`,
   },
+  RECORDING: {
+    SAVE: `${SERVER_URL}/api/recordings/save`,
+    GET_RECORDS: `${SERVER_URL}/api/recordings/meeting-records`,
+  },
 };
 
 export const LS_KEYS = {

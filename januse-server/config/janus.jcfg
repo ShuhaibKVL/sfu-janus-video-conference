@@ -1,3 +1,4 @@
 general: {
-    configs_folder = "/usr/local/etc/janus"
+    configs_folder = "/usr/local/etc/janus",
+    recordings_tmp_ext = "tmp"
 }
