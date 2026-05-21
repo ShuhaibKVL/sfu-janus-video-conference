@@ -23,7 +23,7 @@ router.post("/save", async (req, res) => {
     /**
      * CONVERT RECORDING
      */
-    const convertedPath = await convertRecording(recordingName);
+    const convertedPath = await convertRecording(recordingName, type);
 
     console.log("Converted Path:", convertedPath);
 
@@ -66,7 +66,31 @@ router.get("/meeting-records", async (req, res) => {
       createdAt: -1,
     });
 
-    res.json(recordings);
+    /**
+     * GROUP BY ROOM ID
+     */
+    const groupedRecords = recordings.reduce((acc: any, record: any) => {
+      const roomId = record.roomId;
+
+      if (!acc[roomId]) {
+        acc[roomId] = {
+          roomId,
+          createdAt: record.createdAt,
+          recordings: [],
+        };
+      }
+
+      acc[roomId].recordings.push(record);
+
+      return acc;
+    }, {});
+
+    /**
+     * CONVERT OBJECT -> ARRAY
+     */
+    const result = Object.values(groupedRecords);
+
+    res.json(result);
   } catch (error) {
     console.log("error fetching recordings :", error);
 

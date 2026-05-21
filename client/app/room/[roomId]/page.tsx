@@ -792,7 +792,11 @@ export default function RoomPage() {
       }
 
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: 1280,
+          height: 720,
+          frameRate: 10,
+        },
         audio: false,
       });
 
